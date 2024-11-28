@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <fcntl.h>
 
 #include "constants.h"
 #include "parser.h"
@@ -28,6 +29,32 @@ int main(int argc, char* argv[]) {
         break;
       if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
         continue;
+
+      int fd;
+      char buf[1024];
+      ssize_t bytesRead;
+
+      char filepath[1024];
+      strcat(filepath, dirpath);
+      strcat(filepath, dp->d_name);
+
+      fd = open(filepath, O_RDONLY);
+      if (fd == -1) {
+          perror("Erro ao abrir arquivo");
+          break;
+      }
+
+      bytesRead = read(fd, buf, sizeof(buf) - 1);
+      if (bytesRead == -1) {
+          perror("Erro ao ler arquivo");
+          close(fd);
+          break;
+      }
+      buf[bytesRead] = '\0';
+
+      printf("%s", buf);
+
+      close(fd);
     }
   }
 
