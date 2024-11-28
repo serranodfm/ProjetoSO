@@ -2,15 +2,33 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #include "constants.h"
 #include "parser.h"
 #include "operations.h"
+#include "string.h"
 
 int main(int argc, char* argv[]) {
 
-  for (int i = 0; i < argc; i++) {
-    printf("%s\n", argv[i]);
+  if (argc > 0) {
+    char dirpath[1024];
+    strcpy(dirpath, argv[1]);
+
+    DIR *dirp;
+    struct dirent *dp;
+    dirp = opendir(dirpath);
+    if (dirp == NULL) {
+      //failed
+      return 0;
+    }
+    for (;;) {
+      dp = readdir(dirp);
+      if (dp == NULL)
+        break;
+      if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
+        continue;
+    }
   }
 
   if (kvs_init()) {
