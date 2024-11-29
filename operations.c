@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "kvs.h"
 #include "constants.h"
@@ -114,4 +117,37 @@ int kvs_backup() {
 void kvs_wait(unsigned int delay_ms) {
   struct timespec delay = delay_to_timespec(delay_ms);
   nanosleep(&delay, NULL);
+}
+
+
+DIR *open_dir(const char *dirpath) {
+  return opendir(dirpath);
+}
+
+int read_files_in_directory(DIR *dirp, const char *dirpath) {
+  struct dirent *dp;
+  int fd;
+  for (;;) {
+    dp = readdir(dirp);
+    if (dp == NULL)
+      break;
+    if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
+      continue;
+
+    char filepath[1024];
+    strcat(filepath, dirpath);
+    strcat(filepath, dp->d_name);
+
+    fd = open(filepath, O_RDONLY);
+    if (fd == -1) {
+        perror("Erro ao abrir arquivo");
+        break;
+    }
+  }
+  return fd;
+}
+
+void close_files(DIR *dirp, int fd) {
+  close(fd);
+  closedir(dirp);
 }

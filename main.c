@@ -11,51 +11,15 @@
 #include "string.h"
 
 int main(int argc, char* argv[]) {
+  int fd;
+  DIR *dirp = NULL;
 
-  if (argc > 0) {
-    char dirpath[1024];
-    strcpy(dirpath, argv[1]);
-
-    DIR *dirp;
-    struct dirent *dp;
-    dirp = opendir(dirpath);
-    if (dirp == NULL) {
-      //failed
-      return 0;
-    }
-    for (;;) {
-      dp = readdir(dirp);
-      if (dp == NULL)
-        break;
-      if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
-        continue;
-
-      int fd;
-      char buf[1024];
-      ssize_t bytesRead;
-
-      char filepath[1024];
-      strcat(filepath, dirpath);
-      strcat(filepath, dp->d_name);
-
-      fd = open(filepath, O_RDONLY);
-      if (fd == -1) {
-          perror("Erro ao abrir arquivo");
-          break;
-      }
-
-      bytesRead = read(fd, buf, sizeof(buf) - 1);
-      if (bytesRead == -1) {
-          perror("Erro ao ler arquivo");
-          close(fd);
-          break;
-      }
-      buf[bytesRead] = '\0';
-
-      printf("%s", buf);
-
-      close(fd);
-    }
+  if (argc > 1) {
+    dirp = open_dir(argv[1]);
+    fd = read_files_in_directory(dirp, argv[1]);
+  } else {
+    // Usa o stdin se nenhum ficheiro for especificado
+    fd = STDIN_FILENO;
   }
 
   if (kvs_init()) {
@@ -72,9 +36,9 @@ int main(int argc, char* argv[]) {
     printf("> ");
     fflush(stdout);
 
-    switch (get_next(STDIN_FILENO)) {
+    switch (get_next(fd)) {
       case CMD_WRITE:
-        num_pairs = parse_write(STDIN_FILENO, keys, values, MAX_WRITE_SIZE, MAX_STRING_SIZE);
+        num_pairs = parse_write(fd, keys, values, MAX_WRITE_SIZE, MAX_STRING_SIZE);
         if (num_pairs == 0) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
           continue;
@@ -87,7 +51,7 @@ int main(int argc, char* argv[]) {
         break;
 
       case CMD_READ:
-        num_pairs = parse_read_delete(STDIN_FILENO, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
+        num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
 
         if (num_pairs == 0) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
@@ -100,7 +64,7 @@ int main(int argc, char* argv[]) {
         break;
 
       case CMD_DELETE:
-        num_pairs = parse_read_delete(STDIN_FILENO, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
+        num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
 
         if (num_pairs == 0) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
@@ -113,12 +77,11 @@ int main(int argc, char* argv[]) {
         break;
 
       case CMD_SHOW:
-
         kvs_show();
         break;
 
       case CMD_WAIT:
-        if (parse_wait(STDIN_FILENO, &delay, NULL) == -1) {
+        if (parse_wait(fd, &delay, NULL) == -1) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
           continue;
         }
@@ -158,6 +121,9 @@ int main(int argc, char* argv[]) {
         break;
 
       case EOC:
+        if (argc > 1) {
+          close_files(dirp, fd);
+        }
         kvs_terminate();
         return 0;
     }

@@ -78,8 +78,7 @@ static int read_uint(int fd, unsigned int *value, char *next) {
 
 static void cleanup(int fd) {
   char ch;
-  while (read(fd, &ch, 1) == 1 && ch != '\n')
-    ;
+  while (read(fd, &ch, 1) == 1 && ch != '\n');
 }
 
 enum Command get_next(int fd) {
@@ -222,7 +221,7 @@ size_t parse_write(int fd, char keys[][MAX_STRING_SIZE], char values[][MAX_STRIN
     return 0;
   }
 
-  if (read(fd, &ch, 1) != 1 || (ch != '\n' && ch != '\0')) {
+  if (read(fd, &ch, 1) != 1 || (ch != '\n' && ch != ' ')) {
     cleanup(fd);
     return 0;
   }
@@ -259,7 +258,7 @@ size_t parse_read_delete(int fd, char keys[][MAX_STRING_SIZE], size_t max_keys, 
     return 0;
   }
 
-  if (read(fd, &ch, 1) != 1 || (ch != '\n' && ch != '\0')) {
+  if (read(fd, &ch, 1) != 1 || (ch != '\n' && ch != ' ')) {
     cleanup(fd);
     return 0;
   }
