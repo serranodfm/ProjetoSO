@@ -10,6 +10,7 @@
 #include "constants.h"
 
 static struct HashTable* kvs_table = NULL;
+char *filename = NULL;
 
 
 /// Calculates a timespec from a delay in milliseconds.
@@ -110,7 +111,24 @@ void kvs_show() {
 int kvs_backup() {
   //usar FORK
   //usar wait para fazer com que algum processo acabe
-
+  //int fd;
+  char count_str[20];
+  snprintf(count_str, sizeof(count_str), "%d", 1);
+  size_t bck_filename_len = strlen(filename) + strlen("-") + strlen(count_str) + 1;
+  char *bck_filename = malloc(bck_filename_len);
+  strcpy(bck_filename, filename);
+  strcat(bck_filename, "-");
+  strcat(bck_filename, count_str);
+  //printf("%s", bck_filename);
+  free(bck_filename);
+  //const char *nome_ficheiro = ".bck";
+  //open(filename)
+  /*for (valores hashtable)
+    obter valores
+    guardar valores em nomefich-count.bck
+  fechar
+  */ 
+  
   return 0;
 }
 
@@ -132,11 +150,16 @@ int read_files_in_directory(DIR *dirp, const char *dirpath) {
     if (dp == NULL)
       break;
     if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
+      //. -> diretorio atual
+      //.. -> diretorio pai
       continue;
 
     char filepath[1024];
-    strcat(filepath, dirpath);
-    strcat(filepath, dp->d_name);
+    free(filename); 
+    filename = malloc(strlen(dp->d_name) + 1);
+    strcpy(filename, dp->d_name);
+    snprintf(filepath, sizeof(filepath), "%s/%s", dirpath, dp->d_name);
+
 
     fd = open(filepath, O_RDONLY);
     if (fd == -1) {
@@ -150,4 +173,5 @@ int read_files_in_directory(DIR *dirp, const char *dirpath) {
 void close_files(DIR *dirp, int fd) {
   close(fd);
   closedir(dirp);
+  free(filename);
 }

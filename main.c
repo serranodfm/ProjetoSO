@@ -13,8 +13,10 @@
 int main(int argc, char* argv[]) {
   int fd;
   DIR *dirp = NULL;
+  int file = 0;
 
   if (argc > 1) {
+    file = 1;
     dirp = open_dir(argv[1]);
     fd = read_files_in_directory(dirp, argv[1]);
   } else {
@@ -33,7 +35,7 @@ int main(int argc, char* argv[]) {
     unsigned int delay;
     size_t num_pairs;
 
-    printf("> ");
+    if (!file) {printf("> ");}  
     fflush(stdout);
 
     switch (get_next(fd)) {
@@ -121,7 +123,7 @@ int main(int argc, char* argv[]) {
         break;
 
       case EOC:
-        if (argc > 1) {
+        if (file) {
           close_files(dirp, fd);
         }
         kvs_terminate();
