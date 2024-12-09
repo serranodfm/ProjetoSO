@@ -9,6 +9,8 @@
 #include "kvs.h"
 #include "constants.h"
 
+#define MAX_FILES 100
+
 static struct HashTable* kvs_table = NULL;
 char *filename = NULL;
 
@@ -159,36 +161,38 @@ DIR *open_dir(const char *dirpath) {
   return opendir(dirpath);
 }
 
-int read_files_in_directory(DIR *dirp, const char *dirpath) {
+int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
   struct dirent *dp;
-  int fd;
+  int fds[MAX_FILES]; 
+  int size = 0;
+
   for (;;) {
     dp = readdir(dirp);
     if (dp == NULL)
       break;
+
     if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
-      //. -> diretorio atual
-      //.. -> diretorio pai
       continue;
 
     char filepath[1024];
-    free(filename); 
-    filename = malloc(strlen(dp->d_name) + 1);
-    strcpy(filename, dp->d_name); //guardar o nome do ficheiro
     snprintf(filepath, sizeof(filepath), "%s/%s", dirpath, dp->d_name);
 
-
-    fd = open(filepath, O_RDONLY);
+    int fd = open(filepath, O_RDONLY);
     if (fd == -1) {
-        perror("Erro ao abrir arquivo");
-        break;
+      perror("Erro ao abrir arquivo");
+      continue;
     }
+    fds[size++] = fd;
   }
-  return fd;
+
+  *count = size; // Retorna o número de fds armazenados
+  return fds;
 }
 
-void close_files(DIR *dirp, int fd) {
-  close(fd);
+void close_files(DIR *dirp, int* fds, int count) {
+  for (int i = 0; i < count; i++) {
+    close(fds[i]);
+  }
   closedir(dirp);
   free(filename);
 }
