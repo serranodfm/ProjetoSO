@@ -14,11 +14,16 @@ int main(int argc, char* argv[]) {
   int fd;
   DIR *dirp = NULL;
   int file = 0;
+  char *dirpath = NULL;
 
   if (argc > 1) {
     file = 1;
     dirp = open_dir(argv[1]);
-    fd = read_files_in_directory(dirp, argv[1]);
+    fd = read_files_in_directory(dirp, argv[1]); 
+
+    dirpath = malloc(strlen(argv[1]) + 1);
+    strcpy(dirpath, argv[1]);
+
   } else {
     // Usa o stdin se nenhum ficheiro for especificado
     fd = STDIN_FILENO;
@@ -96,7 +101,7 @@ int main(int argc, char* argv[]) {
 
       case CMD_BACKUP:
 
-        if (kvs_backup()) {
+        if (kvs_backup(dirpath)) {
           fprintf(stderr, "Failed to perform backup.\n");
         }
         break;
@@ -124,6 +129,7 @@ int main(int argc, char* argv[]) {
 
       case EOC:
         if (file) {
+          free(dirpath);
           close_files(dirp, fd);
         }
         kvs_terminate();

@@ -108,27 +108,44 @@ void kvs_show() {
   }
 }
 
-int kvs_backup() {
+int kvs_backup(char *dirpath) {
   //usar FORK
   //usar wait para fazer com que algum processo acabe
-  //int fd;
+  int fd;
   char count_str[20];
+  filename[strlen(filename) - 4] = '\0';
+
   snprintf(count_str, sizeof(count_str), "%d", 1);
-  size_t bck_filename_len = strlen(filename) + strlen("-") + strlen(count_str) + 1;
+
+  size_t bck_filename_len = strlen(dirpath) + strlen(filename) + strlen("-") + strlen(count_str) + 5 /*4(.bck) + 1("/0")*/;
   char *bck_filename = malloc(bck_filename_len);
-  strcpy(bck_filename, filename);
-  strcat(bck_filename, "-");
-  strcat(bck_filename, count_str);
-  //printf("%s", bck_filename);
+
+  sprintf(bck_filename, "%s%s-%s.bck", dirpath, filename, count_str);
+
+  fd = open(bck_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  if (fd == -1) {
+    perror("Erro ao abrir arquivo");
+  }
+
+  for (int i = 0; i < TABLE_SIZE; i++) {
+    KeyNode *keyNode = kvs_table->table[i];
+    while (keyNode != NULL) {
+      char *value = keyNode->value;
+      char *key = keyNode->key;
+      size_t bck_len = strlen(value) + strlen(key) + 6;
+      char *bck = malloc(bck_len);
+
+      sprintf(bck, "(%s, %s)\n", key, value);
+
+      if (write(fd, bck, bck_len) == -1) {
+        perror("Erro ao escrever no arquivo");
+      }
+
+      free(bck);
+      keyNode = keyNode->next; 
+    }
+  }
   free(bck_filename);
-  //const char *nome_ficheiro = ".bck";
-  //open(filename)
-  /*for (valores hashtable)
-    obter valores
-    guardar valores em nomefich-count.bck
-  fechar
-  */ 
-  
   return 0;
 }
 
@@ -157,7 +174,7 @@ int read_files_in_directory(DIR *dirp, const char *dirpath) {
     char filepath[1024];
     free(filename); 
     filename = malloc(strlen(dp->d_name) + 1);
-    strcpy(filename, dp->d_name);
+    strcpy(filename, dp->d_name); //guardar o nome do ficheiro
     snprintf(filepath, sizeof(filepath), "%s/%s", dirpath, dp->d_name);
 
 
