@@ -10,13 +10,12 @@ kvs_binary=$1
 test_dir="tests-public/jobs"
 results_dir="tests-public/results"
 
-
 run_test() {
     local file=$1
     local filename
     filename=$(basename "$file" .job)
     local temp_dir
-    temp_dir="tests-public/out"
+    temp_dir=$(mktemp -d)
 
     cp "$file" "$temp_dir"
 

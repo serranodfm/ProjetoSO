@@ -110,14 +110,12 @@ void kvs_show() {
   }
 }
 
-int kvs_backup(char *dirpath) {
-  //usar FORK
-  //usar wait para fazer com que algum processo acabe
+int kvs_backup(char *dirpath, int bck_count) {
   int fd;
   char count_str[20];
   filename[strlen(filename) - 4] = '\0';
 
-  snprintf(count_str, sizeof(count_str), "%d", 1);
+  snprintf(count_str, sizeof(count_str), "%d", bck_count);
 
   size_t bck_filename_len = strlen(dirpath) + strlen(filename) + strlen("-") + strlen(count_str) + 5 /*4(.bck) + 1("/0")*/;
   char *bck_filename = malloc(bck_filename_len);
@@ -127,6 +125,7 @@ int kvs_backup(char *dirpath) {
   fd = open(bck_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (fd == -1) {
     perror("Erro ao abrir arquivo");
+    return 1;
   }
 
   for (int i = 0; i < TABLE_SIZE; i++) {
@@ -147,6 +146,7 @@ int kvs_backup(char *dirpath) {
       keyNode = keyNode->next; 
     }
   }
+  printf("acabou o backup %d\n", bck_count);
   free(bck_filename);
   return 0;
 }
@@ -176,6 +176,9 @@ int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
 
     char filepath[1024];
     snprintf(filepath, sizeof(filepath), "%s/%s", dirpath, dp->d_name);
+    free(filename); 
+    filename = malloc(strlen(dp->d_name) + 1);
+    strcpy(filename, dp->d_name); //guardar o nome do ficheiro
 
     int fd = open(filepath, O_RDONLY);
     if (fd == -1) {

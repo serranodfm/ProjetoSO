@@ -4,13 +4,15 @@
 #include <dirent.h>
 #include <fcntl.h>
 
+#include <sys/wait.h>
+
 #include "constants.h"
 #include "parser.h"
 #include "operations.h"
 #include "string.h"
 
 int main(int argc, char* argv[]) {
-  int fd, file = 0, index = 0, *fds = NULL, count = 0;
+  int fd, file = 0, index = 0, *fds = NULL, count = 0, bck_count = 1;
   DIR *dirp = NULL;
   char *dirpath = NULL;
 
@@ -18,7 +20,7 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "Failed to initialize KVS\n");
     return 1;
   }
-
+  //escolher entre ficheiros ou terminal
   if (argc == 1) {
     fd = STDIN_FILENO;
   } else {
@@ -99,11 +101,20 @@ int main(int argc, char* argv[]) {
         break;
 
       case CMD_BACKUP:
-
-        if (kvs_backup(dirpath)) {
-          fprintf(stderr, "Failed to perform backup.\n");
+        pid_t pid = fork();
+        if (pid == 0) {
+          printf("a fazer backup %d\n", bck_count);
+          if (kvs_backup(dirpath, bck_count)) {
+            fprintf(stderr, "Failed to perform backup.\n");
+          }
+          exit(0);
+        } else {
+          int status;
+          wait(&status);
+          bck_count++;
+          printf("continuando\n\n");
+          break;
         }
-        break;
 
       case CMD_INVALID:
         if (!file) {fprintf(stderr, "Invalid command. See HELP for usage\n");}
@@ -131,10 +142,8 @@ int main(int argc, char* argv[]) {
           index++;
           break;
         } 
-        if (file) {
-          free(dirpath);
-          close_files(dirp, fds, count);
-        }
+        free(dirpath);
+        close_files(dirp, fds, count);
         kvs_terminate();
         return 0;
     }
