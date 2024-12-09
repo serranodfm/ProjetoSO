@@ -163,7 +163,7 @@ DIR *open_dir(const char *dirpath) {
 
 int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
   struct dirent *dp;
-  int fds[MAX_FILES]; 
+  static int fds[MAX_FILES]; 
   int size = 0;
 
   for (;;) {
