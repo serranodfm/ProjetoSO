@@ -108,7 +108,6 @@ int main(int argc, char* argv[]) {
           if (child_count < (int)MAX_CHILDREN) {
             pid_t pid = fork();
             if (pid == 0) {
-              printf("a fazer backup %d\n", bck_count);
               if (kvs_backup(dirpath, bck_count)) {
                 fprintf(stderr, "Failed to perform backup.\n");
               }

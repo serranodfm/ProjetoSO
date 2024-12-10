@@ -17,7 +17,7 @@ def string_aleatoria(max_length):
 def main():
     for _ in range(100000):
         if random.randint(0, 10000) == 1234: print("BACKUP")
-        print(f"WRITE [({string_aleatoria(MAX_STRING_LENGTH)},{string_aleatoria(MAX_STRING_LENGTH)})({string_aleatoria(MAX_STRING_LENGTH)},{string_aleatoria(MAX_STRING_LENGTH)})]")
+        print(f"WRITE [({string_aleatoria(MAX_STRING_LENGTH)},{string_aleatoria(MAX_STRING_LENGTH)})]")
     #for _ in range(10):
         #print("BACKUP")
     

@@ -146,8 +146,6 @@ int kvs_backup(char *dirpath, int bck_count) {
       keyNode = keyNode->next; 
     }
   }
-  sleep(5);
-  printf("acabou o backup %d\n", bck_count);
   free(bck_filename);
   return 0;
 }
