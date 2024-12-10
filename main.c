@@ -13,6 +13,7 @@
 
 int main(int argc, char* argv[]) {
   int fd, file = 0, index = 0, *fds = NULL, count = 0, bck_count = 1;
+  size_t MAX_CHILDREN;
   int child_count = 0;
   DIR *dirp = NULL;
   char *dirpath = NULL;
@@ -31,6 +32,7 @@ int main(int argc, char* argv[]) {
 
     dirpath = malloc(strlen(argv[1]) + 1);
     strcpy(dirpath, argv[1]);
+    sscanf(argv[2], "%ld", &MAX_CHILDREN);
   }
 
   while (1) {
@@ -103,7 +105,7 @@ int main(int argc, char* argv[]) {
 
       case CMD_BACKUP:
         while (1) {
-          if (child_count < MAX_CHILDREN) {
+          if (child_count < (int)MAX_CHILDREN) {
             pid_t pid = fork();
             if (pid == 0) {
               printf("a fazer backup %d\n", bck_count);
