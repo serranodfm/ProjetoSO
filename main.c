@@ -1,9 +1,10 @@
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <fcntl.h>
+
+#include <sys/wait.h>
 
 #include "constants.h"
 #include "parser.h"
@@ -11,25 +12,30 @@
 #include "string.h"
 
 int main(int argc, char* argv[]) {
-  int fd;
+  int fd, file = 0, index = 0, *fds = NULL, count = 0, bck_count = 1;
   DIR *dirp = NULL;
-  int file = 0;
-
-  if (argc > 1) {
-    file = 1;
-    dirp = open_dir(argv[1]);
-    fd = read_files_in_directory(dirp, argv[1]);
-  } else {
-    // Usa o stdin se nenhum ficheiro for especificado
-    fd = STDIN_FILENO;
-  }
+  char *dirpath = NULL;
 
   if (kvs_init()) {
     fprintf(stderr, "Failed to initialize KVS\n");
     return 1;
   }
+  //escolher entre ficheiros ou terminal
+  if (argc == 1) {
+    fd = STDIN_FILENO;
+  } else {
+    file = 1;
+    dirp = open_dir(argv[1]);
+    fds = read_files_in_directory(dirp, argv[1], &count); 
+
+    dirpath = malloc(strlen(argv[1]) + 1);
+    strcpy(dirpath, argv[1]);
+  }
 
   while (1) {
+    if (file) {
+      fd = fds[index];
+    }
     char keys[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
     char values[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
     unsigned int delay;
@@ -41,7 +47,7 @@ int main(int argc, char* argv[]) {
     switch (get_next(fd)) {
       case CMD_WRITE:
         num_pairs = parse_write(fd, keys, values, MAX_WRITE_SIZE, MAX_STRING_SIZE);
-        if (num_pairs == 0) {
+        if (num_pairs == 0 && !file) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
           continue;
         }
@@ -55,7 +61,7 @@ int main(int argc, char* argv[]) {
       case CMD_READ:
         num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
 
-        if (num_pairs == 0) {
+        if (num_pairs == 0 && !file) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
           continue;
         }
@@ -68,7 +74,7 @@ int main(int argc, char* argv[]) {
       case CMD_DELETE:
         num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
 
-        if (num_pairs == 0) {
+        if (num_pairs == 0 && !file) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
           continue;
         }
@@ -83,7 +89,7 @@ int main(int argc, char* argv[]) {
         break;
 
       case CMD_WAIT:
-        if (parse_wait(fd, &delay, NULL) == -1) {
+        if (parse_wait(fd, &delay, NULL) == -1 && !file) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
           continue;
         }
@@ -95,14 +101,23 @@ int main(int argc, char* argv[]) {
         break;
 
       case CMD_BACKUP:
-
-        if (kvs_backup()) {
-          fprintf(stderr, "Failed to perform backup.\n");
+        pid_t pid = fork();
+        if (pid == 0) {
+          printf("a fazer backup %d\n", bck_count);
+          if (kvs_backup(dirpath, bck_count)) {
+            fprintf(stderr, "Failed to perform backup.\n");
+          }
+          exit(0);
+        } else {
+          int status;
+          wait(&status);
+          bck_count++;
+          printf("continuando\n\n");
+          break;
         }
-        break;
 
       case CMD_INVALID:
-        fprintf(stderr, "Invalid command. See HELP for usage\n");
+        if (!file) {fprintf(stderr, "Invalid command. See HELP for usage\n");}
         break;
 
       case CMD_HELP:
@@ -113,7 +128,7 @@ int main(int argc, char* argv[]) {
             "  DELETE [key,key2,...]\n"
             "  SHOW\n"
             "  WAIT <delay_ms>\n"
-            "  BACKUP\n" // Not implemented
+            "  BACKUP\n" 
             "  HELP\n"
         );
 
@@ -123,9 +138,12 @@ int main(int argc, char* argv[]) {
         break;
 
       case EOC:
-        if (file) {
-          close_files(dirp, fd);
-        }
+        if (index < count-1) {
+          index++;
+          break;
+        } 
+        free(dirpath);
+        close_files(dirp, fds, count);
         kvs_terminate();
         return 0;
     }
