@@ -13,6 +13,7 @@
 
 int main(int argc, char* argv[]) {
   int fd, file = 0, index = 0, *fds = NULL, count = 0, bck_count = 1;
+  int child_count = 0;
   DIR *dirp = NULL;
   char *dirpath = NULL;
 
@@ -101,20 +102,27 @@ int main(int argc, char* argv[]) {
         break;
 
       case CMD_BACKUP:
-        pid_t pid = fork();
-        if (pid == 0) {
-          printf("a fazer backup %d\n", bck_count);
-          if (kvs_backup(dirpath, bck_count)) {
-            fprintf(stderr, "Failed to perform backup.\n");
+        while (1) {
+          if (child_count < MAX_CHILDREN) {
+            pid_t pid = fork();
+            if (pid == 0) {
+              printf("a fazer backup %d\n", bck_count);
+              if (kvs_backup(dirpath, bck_count)) {
+                fprintf(stderr, "Failed to perform backup.\n");
+              }
+              exit(0);
+            } else {
+              bck_count++;
+              child_count++;
+              break;
+            }
+          } 
+          else {
+            wait(NULL);
+            child_count--;
           }
-          exit(0);
-        } else {
-          int status;
-          wait(&status);
-          bck_count++;
-          printf("continuando\n\n");
-          break;
         }
+        break;
 
       case CMD_INVALID:
         if (!file) {fprintf(stderr, "Invalid command. See HELP for usage\n");}
