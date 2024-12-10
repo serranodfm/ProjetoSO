@@ -148,6 +148,8 @@ int main(int argc, char* argv[]) {
 
       case EOC:
         if (index < count-1) {
+          printf("teste %d\n", index+1);
+          kvs_clean();
           index++;
           break;
         } 

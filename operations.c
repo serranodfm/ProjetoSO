@@ -42,6 +42,12 @@ int kvs_terminate() {
   return 0;
 }
 
+void kvs_clean() {
+  kvs_terminate();
+  kvs_table = NULL;
+  kvs_init();
+}
+
 int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_STRING_SIZE]) {
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
