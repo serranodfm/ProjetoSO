@@ -24,11 +24,12 @@ int main(int argc, char* argv[]) {
     fd = STDIN_FILENO;
   } else {
     file = 1;
-    dirp = open_dir(argv[1]);
-    fds = read_files_in_directory(dirp, argv[1], &count); 
+    size_t strl = strlen(argv[1]) + 2;
+    dirpath = malloc(strl);
+    snprintf(dirpath, strl, "%s/", argv[1]);
+    dirp = open_dir(dirpath);
+    fds = read_files_in_directory(dirp, dirpath, &count); 
 
-    dirpath = malloc(strlen(argv[1]) + 1);
-    strcpy(dirpath, argv[1]);
     sscanf(argv[2], "%ld", &MAX_CHILDREN);
     sscanf(argv[3], "%ld", &MAX_THREADS);
   }
