@@ -8,12 +8,6 @@ typedef struct {
     char value[MAX_STRING_SIZE];
 } KeyValuePair;
 
-typedef struct {
-    int file;
-    int fd;
-} JobArgs;
-
-
 /// Initializes the KVS state.
 /// @return 0 if the KVS state was initialized successfully, 1 otherwise.
 int kvs_init();
@@ -68,7 +62,9 @@ void kvs_out(char *string);
 char *createFormattedString(const char *format, ...);
 void new_index(int new_index);
 void kvs_next();
+void *process_job(void *arg);
 int compareStrings(const void *a, const void *b);
 int compareKeyValuePairs(const void *a, const void *b);
+void backup_mutex_init();
 
 #endif  // KVS_OPERATIONS_H

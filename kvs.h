@@ -4,10 +4,12 @@
 #define TABLE_SIZE 26
 
 #include <stddef.h>
+#include <pthread.h>
 
 typedef struct KeyNode {
     char *key;
     char *value;
+    pthread_rwlock_t lock;
     struct KeyNode *next;
 } KeyNode;
 

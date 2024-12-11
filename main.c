@@ -15,35 +15,50 @@
 size_t MAX_CHILDREN;
 size_t MAX_THREADS;
 int child_count = 0;
+pthread_mutex_t job_mutex;
 pthread_mutex_t backup_mutex;
 char *dirpath = NULL;
+int *fds = NULL;
 
 int main(int argc, char* argv[]) {
-  int fd, file = 0, index = 0, *fds = NULL, count = 0, bck_count = 1, thread_count = 0, thread_in_use = 0;
+  int fd, index = 0, count = 0, bck_count = 1;
   DIR *dirp = NULL;
+  pthread_mutex_t job_mutex;
+  pthread_mutex_init(&job_mutex, NULL);
+  pthread_mutex_init(&backup_mutex, NULL);
 
-  //escolher entre ficheiros ou terminal
-  if (argc == 1) {
-    fd = STDIN_FILENO;
-  } else {
-    file = 1;
-    size_t strl = strlen(argv[1]) + 2;
-    dirpath = malloc(strl);
-    snprintf(dirpath, strl, "%s/", argv[1]);
-    dirp = open_dir(dirpath);
-    fds = read_files_in_directory(dirp, dirpath, &count); 
+  size_t strl = strlen(argv[1]) + 2;
+  dirpath = malloc(strl);
+  snprintf(dirpath, strl, "%s/", argv[1]);
+  dirp = open_dir(dirpath);
+  fds = read_files_in_directory(dirp, dirpath, &count); 
 
-    sscanf(argv[2], "%ld", &MAX_CHILDREN);
-    sscanf(argv[3], "%ld", &MAX_THREADS);
-  }
+  sscanf(argv[2], "%ld", &MAX_CHILDREN);
+  sscanf(argv[3], "%ld", &MAX_THREADS);
+
+  if (count < MAX_THREADS) MAX_THREADS = count;
 
   if (kvs_init()) {
     fprintf(stderr, "Failed to initialize KVS\n");
     return 1;
   }
 
+  pthread_t threads[MAX_THREADS];
+  for (int i = 0; i < MAX_THREADS; i++) {
+    if (pthread_create(&threads[i], NULL, thread_function, NULL) != 0) {
+      perror("Erro ao criar thread");
+      return 1;
+    }
+  }
 
+  for (int i = 0; i < MAX_THREADS; i++) {
+    pthread_join(threads[i], NULL);
+  }
 
+  free(dirpath);
+  close_files(dirp, fds, count);
+  kvs_terminate();
+  return 0;
 
 
   /*while (1) {

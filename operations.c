@@ -19,6 +19,7 @@ int fd_out;
 static char *filenms[MAX_FILES]; 
 int index = 0;
 
+extern pthread_mutex_t job_mutex;
 extern pthread_mutex_t backup_mutex;
 extern size_t MAX_CHILDREN;
 extern size_t MAX_THREADS;
@@ -289,9 +290,7 @@ void new_index(int new_index) {
   index = new_index;
 }
 
-void *process_job(void *args) {
-  JobArgs *job_args = (JobArgs *) args;
-  int file = job_args->file, fd = job_args->fd;
+void *process_job(int fd) {
   while (1) {
     int bck_count = 1;
     char keys[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
@@ -299,13 +298,10 @@ void *process_job(void *args) {
     unsigned int delay;
     size_t num_pairs;
 
-    if (!file) {printf("> ");}  
-    fflush(stdout);
-
     switch (get_next(fd)) {
       case CMD_WRITE:
         num_pairs = parse_write(fd, keys, values, MAX_WRITE_SIZE, MAX_STRING_SIZE);
-        if (num_pairs == 0 && !file) {
+        if (num_pairs == 0) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
           continue;
         }
@@ -319,7 +315,7 @@ void *process_job(void *args) {
       case CMD_READ:
         num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
 
-        if (num_pairs == 0 && !file) {
+        if (num_pairs == 0) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
           continue;
         }
@@ -332,7 +328,7 @@ void *process_job(void *args) {
       case CMD_DELETE:
         num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
 
-        if (num_pairs == 0 && !file) {
+        if (num_pairs == 0) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
           continue;
         }
@@ -347,7 +343,7 @@ void *process_job(void *args) {
           break;
 
       case CMD_WAIT:
-          if (parse_wait(fd, &delay, NULL) == -1 && !file) {
+          if (parse_wait(fd, &delay, NULL) == -1) {
             fprintf(stderr, "Invalid command. See HELP for usage\n");
             continue;
           }
@@ -381,7 +377,7 @@ void *process_job(void *args) {
           break;
 
       case CMD_INVALID:
-        if (!file) {fprintf(stderr, "Invalid command. See HELP for usage\n");}
+        fprintf(stderr, "Invalid command. See HELP for usage\n");
         break;
 
       case CMD_HELP:
@@ -407,6 +403,46 @@ void *process_job(void *args) {
   }
 }
 
+//
+void* thread_function(void* arg) {
+    while (1) {
+        Task task;
+        int has_task = 0;
+
+        // Bloqueia o acesso à fila de tarefas
+        pthread_mutex_lock(&job_mutex);
+
+        // Verifica se há tarefas disponíveis
+        if (task_index < task_count) {
+            task = task_queue[task_index];
+            task_index++;
+            has_task = 1; // Marca que uma tarefa foi retirada
+        } else if (tasks_completed >= task_count) {
+            // Se todas as tarefas foram concluídas, sinaliza para sair
+            finished = 1;
+        }
+
+        // Desbloqueia o acesso à fila de tarefas
+        pthread_mutex_unlock(&job_mutex);
+
+        // Se havia uma tarefa, processa-a
+        if (has_task) {
+            process_task(&task);
+
+            // Incrementa o contador de tarefas concluídas
+            pthread_mutex_lock(&mutex);
+            tasks_completed++;
+            pthread_mutex_unlock(&mutex);
+        }
+
+        // Sai do loop se todas as tarefas foram concluídas
+        if (finished) {
+            break;
+        }
+    }
+    return NULL;
+}
+
 int compareStrings(const void *a, const void *b) {
   const char *str1 = (const char *)a;
   const char *str2 = (const char *)b;
@@ -417,4 +453,8 @@ int compareKeyValuePairs(const void *a, const void *b) {
   const KeyValuePair *pair1 = (const KeyValuePair *)a;
   const KeyValuePair *pair2 = (const KeyValuePair *)b;
   return strcmp(pair1->key, pair2->key);
+}
+
+void backup_mutex_init() {
+  pthread_mutex_init(&backup_mutex, NULL);
 }
