@@ -150,29 +150,23 @@ int kvs_backup(char *dirpath, int bck_count) {
   }
 
   for (int i = 0; i < TABLE_SIZE; i++) {
-      KeyNode *keyNode = kvs_table->table[i];
-      while (keyNode != NULL) {
-          char *value = keyNode->value;
-          char *key = keyNode->key;
-          size_t bck_len = strlen(value) + strlen(key) + 6;
-          char *bck = malloc(bck_len); 
+    KeyNode *keyNode = kvs_table->table[i];
+    while (keyNode != NULL) {
+      char *value = keyNode->value;
+      char *key = keyNode->key;
+      size_t bck_len = strlen(value) + strlen(key) + 6;
+      char *bck = malloc(bck_len); 
 
-          if (bck == NULL) {
-              perror("Erro ao alocar memória para bck");
-              return -1; 
-          }
+      snprintf(bck, bck_len, "(%s, %s)\n", key, value); 
 
-          snprintf(bck, bck_len, "(%s, %s)\n", key, value); 
-
-          if (write(fd, bck, bck_len) == -1) { 
-              perror("Erro ao escrever no arquivo");
-              free(bck);
-              return -1;
-          }
-
-          free(bck);
-          keyNode = keyNode->next;
+      if (write(fd, bck, bck_len) == -1) { 
+        free(bck);
+        return -1;
       }
+
+      free(bck);
+      keyNode = keyNode->next;
+    }
   }
 
   free(bck_filename);
