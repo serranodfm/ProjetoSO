@@ -154,13 +154,8 @@ int kvs_backup(char *dirpath, int bck_count) {
     while (keyNode != NULL) {
       char *value = keyNode->value;
       char *key = keyNode->key;
-<<<<<<< HEAD
       size_t bck_len = strlen(value) + strlen(key) + 5;
       char *bck = malloc(bck_len + 1);
-=======
-      size_t bck_len = strlen(value) + strlen(key) + 6;
-      char *bck = malloc(bck_len); 
->>>>>>> origin/main
 
       snprintf(bck, bck_len, "(%s, %s)\n", key, value); 
 
