@@ -19,10 +19,6 @@ int main(int argc, char* argv[]) {
   DIR *dirp = NULL;
   char *dirpath = NULL;
 
-  if (kvs_init()) {
-    fprintf(stderr, "Failed to initialize KVS\n");
-    return 1;
-  }
   //escolher entre ficheiros ou terminal
   if (argc == 1) {
     fd = STDIN_FILENO;
@@ -35,6 +31,11 @@ int main(int argc, char* argv[]) {
     strcpy(dirpath, argv[1]);
     sscanf(argv[2], "%ld", &MAX_CHILDREN);
     sscanf(argv[3], "%ld", &MAX_THREADS);
+  }
+
+  if (kvs_init()) {
+    fprintf(stderr, "Failed to initialize KVS\n");
+    return 1;
   }
 
   while (1) {
@@ -52,7 +53,7 @@ int main(int argc, char* argv[]) {
     switch (get_next(fd)) {
       case CMD_WRITE:
         num_pairs = parse_write(fd, keys, values, MAX_WRITE_SIZE, MAX_STRING_SIZE);
-        if (num_pairs == 0 && !file) {
+        if (num_pairs == 0) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
           continue;
         }
@@ -66,7 +67,7 @@ int main(int argc, char* argv[]) {
       case CMD_READ:
         num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
 
-        if (num_pairs == 0 && !file) {
+        if (num_pairs == 0) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
           continue;
         }
@@ -79,7 +80,7 @@ int main(int argc, char* argv[]) {
       case CMD_DELETE:
         num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
 
-        if (num_pairs == 0 && !file) {
+        if (num_pairs == 0) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
           continue;
         }
@@ -94,7 +95,7 @@ int main(int argc, char* argv[]) {
         break;
 
       case CMD_WAIT:
-        if (parse_wait(fd, &delay, NULL) == -1 && !file) {
+        if (parse_wait(fd, &delay, NULL) == -1) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
           continue;
         }
@@ -128,7 +129,7 @@ int main(int argc, char* argv[]) {
         break;
 
       case CMD_INVALID:
-        if (!file) {fprintf(stderr, "Invalid command. See HELP for usage\n");}
+        fprintf(stderr, "Invalid command. See HELP for usage\n");
         break;
 
       case CMD_HELP:
@@ -150,7 +151,6 @@ int main(int argc, char* argv[]) {
 
       case EOC:
         if (index < count-1) {
-          printf("teste %d\n", index+1);
           kvs_clean();
           index++;
           break;

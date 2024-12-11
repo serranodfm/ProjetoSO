@@ -52,5 +52,8 @@ DIR *open_dir(const char *dirpath);
 int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count);
 void close_files(DIR *dirp, int *fds, int count);
 void kvs_clean();
+void init_out();
+void kvs_out(char *string);
+char *createFormattedString(const char *format, ...);
 
 #endif  // KVS_OPERATIONS_H

@@ -5,14 +5,19 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdarg.h>
+
 
 #include "kvs.h"
 #include "constants.h"
+#include "operations.h"
 
 #define MAX_FILES 100
 
 static struct HashTable* kvs_table = NULL;
 char *filename = NULL;
+char *directorypath = NULL;
+int fd_out;
 
 
 /// Calculates a timespec from a delay in milliseconds.
@@ -27,7 +32,7 @@ int kvs_init() {
     fprintf(stderr, "KVS state has already been initialized\n");
     return 1;
   }
-
+  init_out();
   kvs_table = create_hash_table();
   return kvs_table == NULL;
 }
@@ -39,6 +44,7 @@ int kvs_terminate() {
   }
 
   free_table(kvs_table);
+  close(fd_out);
   return 0;
 }
 
@@ -69,17 +75,17 @@ int kvs_read(size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
     return 1;
   }
 
-  printf("[");
+  kvs_out(createFormattedString("["));
   for (size_t i = 0; i < num_pairs; i++) {
     char* result = read_pair(kvs_table, keys[i]);
     if (result == NULL) {
-      printf("(%s,KVSERROR)", keys[i]);
+      kvs_out(createFormattedString("(%s,KVSERROR)", keys[i]));
     } else {
-      printf("(%s,%s)", keys[i], result);
+      kvs_out(createFormattedString("(%s,%s)", keys[i], result));
     }
     free(result);
   }
-  printf("]\n");
+  kvs_out(createFormattedString("]\n"));
   return 0;
 }
 
@@ -93,14 +99,14 @@ int kvs_delete(size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
   for (size_t i = 0; i < num_pairs; i++) {
     if (delete_pair(kvs_table, keys[i]) != 0) {
       if (!aux) {
-        printf("[");
+        kvs_out(createFormattedString("["));
         aux = 1;
       }
-      printf("(%s,KVSMISSING)", keys[i]);
+      kvs_out(createFormattedString("(%s,KVSMISSING)", keys[i]));
     }
   }
   if (aux) {
-    printf("]\n");
+    kvs_out(createFormattedString("]\n"));
   }
 
   return 0;
@@ -110,7 +116,7 @@ void kvs_show() {
   for (int i = 0; i < TABLE_SIZE; i++) {
     KeyNode *keyNode = kvs_table->table[i];
     while (keyNode != NULL) {
-      printf("(%s, %s)\n", keyNode->key, keyNode->value);
+      kvs_out(createFormattedString("(%s, %s)\n", keyNode->key, keyNode->value));
       keyNode = keyNode->next; // Move to the next node
     }
   }
@@ -184,6 +190,9 @@ int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
     free(filename); 
     filename = malloc(strlen(dp->d_name) + 1);
     strcpy(filename, dp->d_name); //guardar o nome do ficheiro
+    free(directorypath); 
+    directorypath = malloc(strlen(dirpath) + 1);
+    strcpy(directorypath, dirpath); //guardar o dir
 
     int fd = open(filepath, O_RDONLY);
     if (fd == -1) {
@@ -197,10 +206,54 @@ int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
   return fds;
 }
 
+void init_out() {
+  filename[strlen(filename) - 4] = '\0';
+
+  size_t out_filename_len = strlen(directorypath) + strlen(filename) + 5 /*4(.out) + 1("/0")*/;
+  char *out_filename = malloc(out_filename_len);
+
+  sprintf(out_filename, "%s%s.out", directorypath, filename);
+
+  fd_out = open(out_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  if (fd_out == -1) {
+    perror("Erro ao abrir arquivo");
+  }
+  free(out_filename);
+}
+
+void kvs_out(char *string) {
+  size_t string_len = strlen(string); // Calcula o tamanho da string
+  if (write(fd_out, string, string_len) == -1) { // Escreve a string diretamente no arquivo
+    perror("Erro ao escrever no arquivo");
+  }
+  free(string);
+}
+
 void close_files(DIR *dirp, int* fds, int count) {
   for (int i = 0; i < count; i++) {
     close(fds[i]);
   }
   closedir(dirp);
   free(filename);
+  free(directorypath);
+}
+
+char *createFormattedString(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+
+  int size = vsnprintf(NULL, 0, format, args) + 1; 
+  va_end(args);
+
+  char *formattedString = (char *)malloc((size_t)size);
+  if (formattedString == NULL) {
+    perror("Erro ao alocar memória");
+    exit(EXIT_FAILURE);
+  }
+
+  va_start(args, format);
+  vsnprintf(formattedString, (size_t)size, format, args);
+  va_end(args);
+
+  return formattedString; 
 }
