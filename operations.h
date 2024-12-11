@@ -3,6 +3,12 @@
 
 #include <stddef.h>
 
+typedef struct {
+    int file;
+    int fd;
+} JobArgs;
+
+
 /// Initializes the KVS state.
 /// @return 0 if the KVS state was initialized successfully, 1 otherwise.
 int kvs_init();

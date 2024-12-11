@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <pthread.h>
 
 #include <sys/wait.h>
 
@@ -11,13 +12,15 @@
 #include "operations.h"
 #include "string.h"
 
+size_t MAX_CHILDREN;
+size_t MAX_THREADS;
+int child_count = 0;
+pthread_mutex_t backup_mutex;
+char *dirpath = NULL;
+
 int main(int argc, char* argv[]) {
-  int fd, file = 0, index = 0, *fds = NULL, count = 0, bck_count = 1;
-  size_t MAX_CHILDREN;
-  size_t MAX_THREADS;
-  int child_count = 0;
+  int fd, file = 0, index = 0, *fds = NULL, count = 0, bck_count = 1, thread_count = 0, thread_in_use = 0;
   DIR *dirp = NULL;
-  char *dirpath = NULL;
 
   //escolher entre ficheiros ou terminal
   if (argc == 1) {
@@ -39,7 +42,11 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  while (1) {
+
+
+
+
+  /*while (1) {
     if (file) {
       fd = fds[index];
     }
@@ -161,5 +168,5 @@ int main(int argc, char* argv[]) {
         kvs_terminate();
         return 0;
     }
-  }
+  }*/
 }
