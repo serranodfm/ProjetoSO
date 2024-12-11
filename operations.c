@@ -157,7 +157,8 @@ int kvs_backup(char *dirpath, int bck_count) {
       size_t bck_len = strlen(value) + strlen(key) + 5;
       char *bck = malloc(bck_len + 1);
 
-      snprintf(bck, bck_len, "(%s, %s)\n", key, value); 
+      snprintf(bck, bck_len, "(%s, %s)", key, value);
+      bck[strlen(bck)] = '\n';
 
       if (write(fd, bck, bck_len) == -1) { 
         free(bck);
