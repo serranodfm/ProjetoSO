@@ -12,7 +12,6 @@
 #include "constants.h"
 #include "operations.h"
 
-#define MAX_FILES 100
 
 static struct HashTable* kvs_table = NULL;
 char *directorypath = NULL;
@@ -151,23 +150,31 @@ int kvs_backup(char *dirpath, int bck_count) {
   }
 
   for (int i = 0; i < TABLE_SIZE; i++) {
-    KeyNode *keyNode = kvs_table->table[i];
-    while (keyNode != NULL) {
-      char *value = keyNode->value;
-      char *key = keyNode->key;
-      size_t bck_len = strlen(value) + strlen(key) + 6;
-      char *bck = malloc(bck_len);
+      KeyNode *keyNode = kvs_table->table[i];
+      while (keyNode != NULL) {
+          char *value = keyNode->value;
+          char *key = keyNode->key;
+          size_t bck_len = strlen(value) + strlen(key) + 6;
+          char *bck = malloc(bck_len); 
 
-      sprintf(bck, "(%s, %s)\n", key, value);
+          if (bck == NULL) {
+              perror("Erro ao alocar memória para bck");
+              return -1; 
+          }
 
-      if (write(fd, bck, bck_len) == -1) {
-        perror("Erro ao escrever no arquivo");
+          snprintf(bck, bck_len, "(%s, %s)\n", key, value); 
+
+          if (write(fd, bck, bck_len) == -1) { 
+              perror("Erro ao escrever no arquivo");
+              free(bck);
+              return -1;
+          }
+
+          free(bck);
+          keyNode = keyNode->next;
       }
-
-      free(bck);
-      keyNode = keyNode->next; 
-    }
   }
+
   free(bck_filename);
   close(fd);
   return 0;

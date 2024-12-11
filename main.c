@@ -154,7 +154,6 @@ int main(int argc, char* argv[]) {
         if (index < count-1) {
           index++;
           new_index(index);
-          kvs_clean();
           break;
         } 
         free(dirpath);
