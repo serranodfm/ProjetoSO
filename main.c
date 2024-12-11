@@ -14,6 +14,7 @@
 int main(int argc, char* argv[]) {
   int fd, file = 0, index = 0, *fds = NULL, count = 0, bck_count = 1;
   size_t MAX_CHILDREN;
+  size_t MAX_THREADS;
   int child_count = 0;
   DIR *dirp = NULL;
   char *dirpath = NULL;
@@ -33,6 +34,7 @@ int main(int argc, char* argv[]) {
     dirpath = malloc(strlen(argv[1]) + 1);
     strcpy(dirpath, argv[1]);
     sscanf(argv[2], "%ld", &MAX_CHILDREN);
+    sscanf(argv[3], "%ld", &MAX_THREADS);
   }
 
   while (1) {
