@@ -65,12 +65,25 @@ int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_
     return 1;
   }
 
+  KeyValuePair *pairs = malloc(num_pairs * sizeof(KeyValuePair));
+  for (size_t i = 0; i < num_pairs; i++) {
+    strncpy(pairs[i].key, keys[i], MAX_STRING_SIZE);
+    strncpy(pairs[i].value, values[i], MAX_STRING_SIZE);
+  }
+
+  qsort(pairs, num_pairs, sizeof(KeyValuePair), compareKeyValuePairs);
+
+  for (size_t i = 0; i < num_pairs; i++) {
+    strncpy(keys[i], pairs[i].key, MAX_STRING_SIZE);
+    strncpy(values[i], pairs[i].value, MAX_STRING_SIZE);
+  }
+  free(pairs);
+
   for (size_t i = 0; i < num_pairs; i++) {
     if (write_pair(kvs_table, keys[i], values[i]) != 0) {
       fprintf(stderr, "Failed to write keypair (%s,%s)\n", keys[i], values[i]);
     }
   }
-
   return 0;
 }
 
@@ -79,28 +92,19 @@ int kvs_read(size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
     fprintf(stderr, "KVS state must be initialized\n");
     return 1;
   }
-
-  HashTable *readHash = create_hash_table();
-  for (size_t i = 0; i < num_pairs; i++) {
-    write_pair(readHash, keys[i], "");
-  }
+  qsort(keys, num_pairs, MAX_STRING_SIZE, compareStrings);
 
   kvs_out(createFormattedString("["));
-  for (size_t i = 0; i < TABLE_SIZE; i++) {
-    KeyNode *keyNode = readHash->table[i];
-    while (keyNode != NULL) {
-      char* result = read_pair(kvs_table, keyNode->key);
-      if (result == NULL) {
-        kvs_out(createFormattedString("(%s,KVSERROR)", keyNode->key));
-      } else {
-        kvs_out(createFormattedString("(%s,%s)", keyNode->key, result));
-      }
-      free(result); 
-      keyNode = keyNode->next;
+  for (size_t i = 0; i < num_pairs; i++) {
+    char* result = read_pair(kvs_table, keys[i]);
+    if (result == NULL) {
+      kvs_out(createFormattedString("(%s,KVSERROR)", keys[i]));
+    } else {
+      kvs_out(createFormattedString("(%s,%s)", keys[i], result));
     }
+    free(result);
   }
   kvs_out(createFormattedString("]\n"));
-  free_table(readHash);
   return 0;
 }
 
@@ -110,6 +114,7 @@ int kvs_delete(size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
     return 1;
   }
   int aux = 0;
+  qsort(keys, num_pairs, MAX_STRING_SIZE, compareStrings);
 
   for (size_t i = 0; i < num_pairs; i++) {
     if (delete_pair(kvs_table, keys[i]) != 0) {
@@ -276,4 +281,16 @@ char *createFormattedString(const char *format, ...) {
 
 void new_index(int new_index) {
   index = new_index;
+}
+
+int compareStrings(const void *a, const void *b) {
+  const char *str1 = (const char *)a;
+  const char *str2 = (const char *)b;
+  return strcmp(str1, str2); 
+}
+
+int compareKeyValuePairs(const void *a, const void *b) {
+  const KeyValuePair *pair1 = (const KeyValuePair *)a;
+  const KeyValuePair *pair2 = (const KeyValuePair *)b;
+  return strcmp(pair1->key, pair2->key);
 }

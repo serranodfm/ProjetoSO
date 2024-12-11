@@ -3,6 +3,11 @@
 
 #include <stddef.h>
 
+typedef struct {
+    char key[MAX_STRING_SIZE];
+    char value[MAX_STRING_SIZE];
+} KeyValuePair;
+
 /// Initializes the KVS state.
 /// @return 0 if the KVS state was initialized successfully, 1 otherwise.
 int kvs_init();
@@ -57,5 +62,7 @@ void kvs_out(char *string);
 char *createFormattedString(const char *format, ...);
 void new_index(int new_index);
 void kvs_next();
+int compareStrings(const void *a, const void *b);
+int compareKeyValuePairs(const void *a, const void *b);
 
 #endif  // KVS_OPERATIONS_H
