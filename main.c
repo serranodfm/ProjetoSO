@@ -151,8 +151,9 @@ int main(int argc, char* argv[]) {
 
       case EOC:
         if (index < count-1) {
-          kvs_clean();
           index++;
+          new_index(index);
+          kvs_clean();
           break;
         } 
         free(dirpath);

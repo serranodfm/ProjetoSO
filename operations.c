@@ -15,9 +15,10 @@
 #define MAX_FILES 100
 
 static struct HashTable* kvs_table = NULL;
-char *filename = NULL;
 char *directorypath = NULL;
 int fd_out;
+static char *filenms[MAX_FILES]; 
+int index = 0;
 
 
 /// Calculates a timespec from a delay in milliseconds.
@@ -125,14 +126,14 @@ void kvs_show() {
 int kvs_backup(char *dirpath, int bck_count) {
   int fd;
   char count_str[20];
-  filename[strlen(filename) - 4] = '\0';
+  filenms[index][strlen(filenms[index]) - 4] = '\0';
 
   snprintf(count_str, sizeof(count_str), "%d", bck_count);
 
-  size_t bck_filename_len = strlen(dirpath) + strlen(filename) + strlen("-") + strlen(count_str) + 5 /*4(.bck) + 1("/0")*/;
+  size_t bck_filename_len = strlen(dirpath) + strlen(filenms[index]) + strlen("-") + strlen(count_str) + 5 /*4(.bck) + 1("/0")*/;
   char *bck_filename = malloc(bck_filename_len);
 
-  sprintf(bck_filename, "%s%s-%s.bck", dirpath, filename, count_str);
+  sprintf(bck_filename, "%s%s-%s.bck", dirpath, filenms[index], count_str);
 
   fd = open(bck_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (fd == -1) {
@@ -182,14 +183,11 @@ int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
     if (dp == NULL)
       break;
 
-    if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
+    if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0 || strcmp(dp->d_name + strlen(dp->d_name) - 4, ".out") == 0)
       continue;
 
     char filepath[1024];
     snprintf(filepath, sizeof(filepath), "%s/%s", dirpath, dp->d_name);
-    free(filename); 
-    filename = malloc(strlen(dp->d_name) + 1);
-    strcpy(filename, dp->d_name); //guardar o nome do ficheiro
     free(directorypath); 
     directorypath = malloc(strlen(dirpath) + 1);
     strcpy(directorypath, dirpath); //guardar o dir
@@ -199,6 +197,8 @@ int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
       perror("Erro ao abrir arquivo");
       continue;
     }
+    filenms[size] = malloc(strlen(dp->d_name)+1);
+    strcpy(filenms[size], dp->d_name); //guardar o nome do ficheiro
     fds[size++] = fd;
   }
 
@@ -207,12 +207,12 @@ int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
 }
 
 void init_out() {
-  filename[strlen(filename) - 4] = '\0';
+  filenms[index][strlen(filenms[index]) - 4] = '\0';
 
-  size_t out_filename_len = strlen(directorypath) + strlen(filename) + 5 /*4(.out) + 1("/0")*/;
+  size_t out_filename_len = strlen(directorypath) + strlen(filenms[index]) + 5 /*4(.out) + 1("/0")*/;
   char *out_filename = malloc(out_filename_len);
 
-  sprintf(out_filename, "%s%s.out", directorypath, filename);
+  sprintf(out_filename, "%s%s.out", directorypath, filenms[index]);
 
   fd_out = open(out_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (fd_out == -1) {
@@ -232,9 +232,9 @@ void kvs_out(char *string) {
 void close_files(DIR *dirp, int* fds, int count) {
   for (int i = 0; i < count; i++) {
     close(fds[i]);
+    free(filenms[i]);
   }
   closedir(dirp);
-  free(filename);
   free(directorypath);
 }
 
@@ -256,4 +256,8 @@ char *createFormattedString(const char *format, ...) {
   va_end(args);
 
   return formattedString; 
+}
+
+void new_index(int new_index) {
+  index = new_index;
 }

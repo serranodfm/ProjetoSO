@@ -55,5 +55,6 @@ void kvs_clean();
 void init_out();
 void kvs_out(char *string);
 char *createFormattedString(const char *format, ...);
+void new_index(int new_index);
 
 #endif  // KVS_OPERATIONS_H
