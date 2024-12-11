@@ -76,17 +76,27 @@ int kvs_read(size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
     return 1;
   }
 
-  kvs_out(createFormattedString("["));
+  HashTable *readHash = create_hash_table();
   for (size_t i = 0; i < num_pairs; i++) {
-    char* result = read_pair(kvs_table, keys[i]);
-    if (result == NULL) {
-      kvs_out(createFormattedString("(%s,KVSERROR)", keys[i]));
-    } else {
-      kvs_out(createFormattedString("(%s,%s)", keys[i], result));
+    write_pair(readHash, keys[i], "");
+  }
+
+  kvs_out(createFormattedString("["));
+  for (size_t i = 0; i < TABLE_SIZE; i++) {
+    KeyNode *keyNode = readHash->table[i];
+    while (keyNode != NULL) {
+      char* result = read_pair(kvs_table, keyNode->key);
+      if (result == NULL) {
+        kvs_out(createFormattedString("(%s,KVSERROR)", keyNode->key));
+      } else {
+        kvs_out(createFormattedString("(%s,%s)", keyNode->key, result));
+      }
+      free(result); 
+      keyNode = keyNode->next;
     }
-    free(result);
   }
   kvs_out(createFormattedString("]\n"));
+  free_table(readHash);
   return 0;
 }
 
@@ -126,7 +136,6 @@ void kvs_show() {
 int kvs_backup(char *dirpath, int bck_count) {
   int fd;
   char count_str[20];
-  filenms[index][strlen(filenms[index]) - 4] = '\0';
 
   snprintf(count_str, sizeof(count_str), "%d", bck_count);
 
@@ -160,6 +169,7 @@ int kvs_backup(char *dirpath, int bck_count) {
     }
   }
   free(bck_filename);
+  close(fd);
   return 0;
 }
 
@@ -183,7 +193,7 @@ int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
     if (dp == NULL)
       break;
 
-    if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0 || strcmp(dp->d_name + strlen(dp->d_name) - 4, ".out") == 0)
+    if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0 || strcmp(dp->d_name + strlen(dp->d_name) - 4, ".job") != 0)
       continue;
 
     char filepath[1024];

@@ -20,6 +20,6 @@ def main():
         print(f"WRITE [({string_aleatoria(MAX_STRING_LENGTH)},{string_aleatoria(MAX_STRING_LENGTH)})]")
     #for _ in range(10):
         #print("BACKUP")
-    print("SHOW")
+    print("BACKUP")
     
 main()
