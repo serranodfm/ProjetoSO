@@ -11,10 +11,6 @@ typedef struct {
     //pthread_rwlock_t lock; nao sei se aqui da jeito, é usado no kvs_write
 } KeyValuePair;
 
-typedef struct {
-    int input; // O input da tarefa
-} Task;
-
 /// Initializes the KVS state.
 /// @return 0 if the KVS state was initialized successfully, 1 otherwise.
 int kvs_init();
@@ -69,11 +65,10 @@ void kvs_out(char *string);
 char *createFormattedString(const char *format, ...);
 void new_index(int new_index);
 void kvs_next();
-void *process_job(int fd);
+void process_job(int fd);
 int compareStrings(const void *a, const void *b);
 int compareKeyValuePairs(const void *a, const void *b);
 void backup_mutex_init();
 void* thread_function(void* arg);
-void process_task(Task* task);
 
 #endif  // KVS_OPERATIONS_H

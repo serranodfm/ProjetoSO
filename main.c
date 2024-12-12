@@ -15,13 +15,14 @@
 size_t MAX_CHILDREN;
 size_t MAX_THREADS;
 int child_count_g = 0;
+int job_count_g = 0;
 pthread_mutex_t job_mutex;
 pthread_mutex_t backup_mutex;
 char *dirpath_g = NULL;
-int *fds = NULL;
+int *fd_s = NULL;
 
 int main(int argc, char* argv[]) {
-  int fd, index = 0, count = 0, bck_count = 1;
+  if (argc != 4) return 1;
   DIR *dirp = NULL;
   pthread_mutex_init(&job_mutex, NULL);
   pthread_mutex_init(&backup_mutex, NULL);
@@ -30,12 +31,12 @@ int main(int argc, char* argv[]) {
   dirpath_g = malloc(strl);
   snprintf(dirpath_g, strl, "%s/", argv[1]);
   dirp = open_dir(dirpath_g);
-  fds = read_files_in_directory(dirp, dirpath_g, &count); 
+  fd_s = read_files_in_directory(dirp, dirpath_g, &job_count_g); 
 
   sscanf(argv[2], "%ld", &MAX_CHILDREN);
   sscanf(argv[3], "%ld", &MAX_THREADS);
 
-  if (count < (int)MAX_THREADS) MAX_THREADS = (size_t)count;
+  if (job_count_g < (int) MAX_THREADS) MAX_THREADS = (size_t) job_count_g;
 
   if (kvs_init()) {
     fprintf(stderr, "Failed to initialize KVS\n");
@@ -43,9 +44,9 @@ int main(int argc, char* argv[]) {
   }
 
   pthread_t threads[MAX_THREADS];
-  for (int i = 0; i < (int)MAX_THREADS; i++) {
+  for (int i = 0; i < (int) MAX_THREADS; i++) {
     if (pthread_create(&threads[i], NULL, thread_function, NULL) != 0) {
-      perror("Erro ao criar thread");
+      perror("Failed to create thread\n");
       return 1;
     }
   }
@@ -55,7 +56,7 @@ int main(int argc, char* argv[]) {
   }
 
   free(dirpath_g);
-  close_files(dirp, fds, count);
+  close_files(dirp, fd_s, job_count_g);
   kvs_terminate();
   return 0;
 
@@ -172,14 +173,14 @@ int main(int argc, char* argv[]) {
         break;
 
       case EOC:
-        if (index < count-1) {
+        if (index < job_count-1) {
           index++;
           new_index(index);
           kvs_next();
           break;
         } 
         free(dirpath);
-        close_files(dirp, fds, count);
+        close_files(dirp, fds, job_count);
         kvs_terminate();
         return 0;
     }
