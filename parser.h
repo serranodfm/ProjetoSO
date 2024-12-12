@@ -2,6 +2,11 @@
 #define KVS_PARSER_H
 
 #include <stddef.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "constants.h"
 
 enum Command {
