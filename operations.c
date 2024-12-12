@@ -412,6 +412,7 @@ void* thread_function(void* arg) {
     while (1) {
         int fd;
         int has_task = 0;
+        int index;
 
         // Bloqueia o acesso à fila de tarefas
         pthread_mutex_lock(&job_mutex);
@@ -426,7 +427,7 @@ void* thread_function(void* arg) {
             // Se todas as tarefas foram concluídas, sinaliza para sair
             finished_g = 1;
         }
-
+        index = job_index_g;
         // Desbloqueia o acesso à fila de tarefas
         pthread_mutex_unlock(&job_mutex);
 
