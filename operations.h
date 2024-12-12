@@ -46,7 +46,7 @@ void kvs_show(int fd_out);
 /// Creates a backup of the KVS state and stores it in the correspondent
 /// backup file
 /// @return 0 if the backup was successful, 1 otherwise.
-int kvs_backup(char *dirpath, int bck_count);
+int kvs_backup(char *dirpath, int bck_count, int index);
 
 /// Waits for the last backup to be called.
 void kvs_wait_backup();
@@ -59,7 +59,7 @@ void kvs_wait(unsigned int delay_ms);
 DIR *open_dir(const char *dirpath);
 int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count);
 void close_files(DIR *dirp, int *fds, int count);
-void init_out(int index);
+int init_out(int index);
 void kvs_out(char *string, int fd_out);
 char *createFormattedString(const char *format, ...);
 void process_job(int fd, int index);

@@ -421,13 +421,12 @@ void* thread_function(void* arg) {
         if (job_index_g < job_count_g) {
             fd = fd_s[job_index_g];
             job_index_g++;
-            new_index(job_index_g);
             has_task = 1; // Marca que uma tarefa foi retirada
         } else if (jobs_completed_g >= job_count_g) {
             // Se todas as tarefas foram concluídas, sinaliza para sair
             finished_g = 1;
         }
-        index = job_index_g;
+        index = job_index_g-1;
         // Desbloqueia o acesso à fila de tarefas
         pthread_mutex_unlock(&job_mutex);
 
