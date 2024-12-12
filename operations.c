@@ -158,10 +158,10 @@ int kvs_backup(char *dirpath, int bck_count, int index) {
 
   snprintf(count_str, sizeof(count_str), "%d", bck_count);
 
-  size_t bck_filename_len = strlen(dirpath) + strlen(filenms[index]) + strlen("-") + strlen(count_str) + 5 /*4(.bck) + 1("/0")*/;
+  size_t bck_filename_len = strlen(dirpath) + strlen(filenms[index]) + strlen("-") + strlen(count_str) + 6 /*4(.bck) + 1("/0")*/;
   char *bck_filename = malloc(bck_filename_len);
 
-  sprintf(bck_filename, "%s%s-%s.bck", dirpath, filenms[index], count_str);
+  sprintf(bck_filename, "%s/%s-%s.bck", dirpath, filenms[index], count_str);
 
   fd = open(bck_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (fd == -1) {
@@ -171,6 +171,8 @@ int kvs_backup(char *dirpath, int bck_count, int index) {
 
   for (int i = 0; i < TABLE_SIZE; i++) {
     KeyNode *keyNode = kvs_table->table[i];
+    KeyNode *prevNode = NULL;
+    if (keyNode != NULL) pthread_rwlock_rdlock(&keyNode->lock);
     while (keyNode != NULL) {
       char *value = keyNode->value;
       char *key = keyNode->key;
@@ -185,7 +187,10 @@ int kvs_backup(char *dirpath, int bck_count, int index) {
       }
 
       free(bck);
-      keyNode = keyNode->next;
+      if (keyNode->next != NULL) pthread_rwlock_rdlock(&keyNode->next->lock);
+      prevNode = keyNode;
+      keyNode = keyNode->next; // Move to the next node
+      pthread_rwlock_unlock(&prevNode->lock);
     }
   }
 
@@ -237,14 +242,12 @@ int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
 }
 
 int init_out(int index) {
-  printf("index: %d\n", index);
   //o erro esta aqui, a mesma thread corre isto duas vezes
   filenms[index][strlen(filenms[index]) - 4] = '\0';
   size_t out_filename_len = strlen(directorypath) + strlen(filenms[index]) + 6 /*4(.out) + 1("/0")*/;
   char *out_filename = malloc(out_filename_len);
 
   sprintf(out_filename, "%s/%s.out", directorypath, filenms[index]);
-  printf("ficheiro atual: %s\n",out_filename);
   int fd_out = open(out_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (fd_out == -1) {
     perror("Erro ao abrir arquivo");
@@ -407,44 +410,36 @@ void process_job(int fd, int index) {
 
 //
 void* thread_function(void* arg) {
-    (void) arg;
-    printf("quantidade de jobs: %d\n", job_count_g);
-    while (1) {
-        int fd;
-        int has_task = 0;
-        int index;
+  (void) arg;
+  while (1) {
+    int fd;
+    int has_task = 0;
+    int index;
 
-        // Bloqueia o acesso à fila de tarefas
-        pthread_mutex_lock(&job_mutex);
+    pthread_mutex_lock(&job_mutex);
 
-        // Verifica se há tarefas disponíveis
-        if (job_index_g < job_count_g) {
-            fd = fd_s[job_index_g];
-            job_index_g++;
-            has_task = 1; // Marca que uma tarefa foi retirada
-        } else if (jobs_completed_g >= job_count_g) {
-            // Se todas as tarefas foram concluídas, sinaliza para sair
-            finished_g = 1;
-        }
-        index = job_index_g-1;
-        // Desbloqueia o acesso à fila de tarefas
-        pthread_mutex_unlock(&job_mutex);
-
-        // Se havia uma tarefa, processa-a
-        if (has_task) {
-            process_job(fd, index);
-            // Incrementa o contador de tarefas concluídas
-            pthread_mutex_lock(&job_mutex);
-            jobs_completed_g++;
-            pthread_mutex_unlock(&job_mutex);
-        }
-
-        // Sai do loop se todas as tarefas foram concluídas
-        if (finished_g) {
-            break;
-        }
+    if (job_index_g < job_count_g) {
+      fd = fd_s[job_index_g];
+      job_index_g++;
+      has_task = 1; 
+    } else if (jobs_completed_g >= job_count_g) {
+      finished_g = 1;
     }
-    return NULL;
+    index = job_index_g-1;
+    pthread_mutex_unlock(&job_mutex);
+
+    if (has_task) {
+      process_job(fd, index);
+      pthread_mutex_lock(&job_mutex);
+      jobs_completed_g++;
+      pthread_mutex_unlock(&job_mutex);
+    }
+
+    if (finished_g) {
+      break;
+    }
+  }
+  return NULL;
 }
 
 int compareStrings(const void *a, const void *b) {
