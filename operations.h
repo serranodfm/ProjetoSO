@@ -3,10 +3,17 @@
 
 #include <stddef.h>
 
+#define MAX_TASKS 100
+
 typedef struct {
     char key[MAX_STRING_SIZE];
     char value[MAX_STRING_SIZE];
+    //pthread_rwlock_t lock; nao sei se aqui da jeito, é usado no kvs_write
 } KeyValuePair;
+
+typedef struct {
+    int input; // O input da tarefa
+} Task;
 
 /// Initializes the KVS state.
 /// @return 0 if the KVS state was initialized successfully, 1 otherwise.
@@ -62,9 +69,10 @@ void kvs_out(char *string);
 char *createFormattedString(const char *format, ...);
 void new_index(int new_index);
 void kvs_next();
-void *process_job(void *arg);
+void *process_job(int fd);
 int compareStrings(const void *a, const void *b);
 int compareKeyValuePairs(const void *a, const void *b);
 void backup_mutex_init();
+void* thread_function(void* arg);
 
 #endif  // KVS_OPERATIONS_H
