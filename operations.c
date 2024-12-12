@@ -21,7 +21,6 @@ static char *filenms[MAX_FILES];
 int index = 0;
 
 extern int job_count_g;  // Número de tarefas na fila -> count
-int job_index_g = 0;
 int jobs_completed_g = 0; // Número de tarefas concluídas -> ???
 
 // Variável de controle para encerrar as threads
@@ -426,6 +425,7 @@ void process_job(int fd) {
 //
 void* thread_function(void* arg) {
     (void) arg;
+    int job_index_g = 0;
     while (1) {
         int fd;
         int has_task = 0;
