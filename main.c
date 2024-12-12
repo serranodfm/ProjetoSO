@@ -23,7 +23,6 @@ int *fds = NULL;
 int main(int argc, char* argv[]) {
   int fd, index = 0, count = 0, bck_count = 1;
   DIR *dirp = NULL;
-  pthread_mutex_t job_mutex;
   pthread_mutex_init(&job_mutex, NULL);
   pthread_mutex_init(&backup_mutex, NULL);
 
@@ -36,7 +35,7 @@ int main(int argc, char* argv[]) {
   sscanf(argv[2], "%ld", &MAX_CHILDREN);
   sscanf(argv[3], "%ld", &MAX_THREADS);
 
-  if (count < MAX_THREADS) MAX_THREADS = count;
+  if (count < (int)MAX_THREADS) MAX_THREADS = (size_t)count;
 
   if (kvs_init()) {
     fprintf(stderr, "Failed to initialize KVS\n");
@@ -44,14 +43,14 @@ int main(int argc, char* argv[]) {
   }
 
   pthread_t threads[MAX_THREADS];
-  for (int i = 0; i < MAX_THREADS; i++) {
+  for (int i = 0; i < (int)MAX_THREADS; i++) {
     if (pthread_create(&threads[i], NULL, thread_function, NULL) != 0) {
       perror("Erro ao criar thread");
       return 1;
     }
   }
 
-  for (int i = 0; i < MAX_THREADS; i++) {
+  for (int i = 0; i < (int)MAX_THREADS; i++) {
     pthread_join(threads[i], NULL);
   }
 

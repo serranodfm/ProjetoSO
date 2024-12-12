@@ -93,7 +93,7 @@ int delete_pair(HashTable *ht, const char *key) {
     pthread_rwlock_wrlock(&keyNode->lock);
     while (keyNode != NULL) {
         if (strcmp(keyNode->key, key) == 0) {
-            pthread_rwlock_wrlock(&keyNode->next);
+            pthread_rwlock_wrlock(&keyNode->lock);
             // Key found; delete this node
             if (prevNode == NULL) {
                 // Node to delete is the first node in the list
@@ -103,7 +103,7 @@ int delete_pair(HashTable *ht, const char *key) {
                 prevNode->next = keyNode->next; // Link the previous node to the next node
                 pthread_rwlock_unlock(&prevNode->lock);
             }
-            pthread_rwlock_unlock(&keyNode->next);
+            pthread_rwlock_unlock(&keyNode->lock);
             // Free the memory allocated for the key and value
             free(keyNode->key);
             free(keyNode->value);
