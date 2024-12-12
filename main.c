@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
 
   size_t strl = strlen(argv[1]) + 2;
   dirpath_g = malloc(strl);
-  snprintf(dirpath_g, strl, "%s/", argv[1]);
+  snprintf(dirpath_g, strl, "%s", argv[1]);
   dirp = open_dir(dirpath_g);
   fd_s = read_files_in_directory(dirp, dirpath_g, &job_count_g); 
 

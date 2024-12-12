@@ -2,5 +2,4 @@
 READ [c1,c2]
 DELETE [c1,c2]
 WRITE [(Escritor1,EcaDeQueiroz)]
-DELETE [Escritor1,Escritor1]
-DELETE [Escritor1]
+READ [Escritor1]
