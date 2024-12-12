@@ -18,7 +18,7 @@ static struct HashTable* kvs_table = NULL;
 char *directorypath = NULL;
 int fd_out;
 static char *filenms[MAX_FILES]; 
-//int index = 0;
+int index = 0;
 
 extern int job_count_g;  // Número de tarefas na fila -> count
 int job_index_g = 0;
@@ -173,10 +173,10 @@ int kvs_backup(char *dirpath, int bck_count) {
 
   snprintf(count_str, sizeof(count_str), "%d", bck_count);
 
-  size_t bck_filename_len = strlen(dirpath) + strlen(filenms[job_index_g]) + strlen("-") + strlen(count_str) + 5 /*4(.bck) + 1("/0")*/;
+  size_t bck_filename_len = strlen(dirpath) + strlen(filenms[index]) + strlen("-") + strlen(count_str) + 5 /*4(.bck) + 1("/0")*/;
   char *bck_filename = malloc(bck_filename_len);
 
-  sprintf(bck_filename, "%s%s-%s.bck", dirpath, filenms[job_index_g], count_str);
+  sprintf(bck_filename, "%s%s-%s.bck", dirpath, filenms[index], count_str);
 
   fd = open(bck_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (fd == -1) {
@@ -252,13 +252,13 @@ int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
 }
 
 void init_out() {
-  printf("index: %d\n", job_index_g);
-  filenms[job_index_g][strlen(filenms[job_index_g]) - 4] = '\0';
+  printf("index: %d\n", index);
+  filenms[index][strlen(filenms[index]) - 4] = '\0';
 
-  size_t out_filename_len = strlen(directorypath) + strlen(filenms[job_index_g]) + 6 /*4(.out) + 1("/0")*/;
+  size_t out_filename_len = strlen(directorypath) + strlen(filenms[index]) + 6 /*4(.out) + 1("/0")*/;
   char *out_filename = malloc(out_filename_len);
 
-  sprintf(out_filename, "%s/%s.out", directorypath, filenms[job_index_g]);
+  sprintf(out_filename, "%s/%s.out", directorypath, filenms[index]);
   fd_out = open(out_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   printf("criou: %s\n",out_filename);
   if (fd_out == -1) {
@@ -268,6 +268,7 @@ void init_out() {
 }
 
 void kvs_out(char *string) {
+  printf("esta no ficheiro: %s\n", filenms[index]);
   size_t string_len = strlen(string); // Calcula o tamanho da string
   if (write(fd_out, string, string_len) == -1) { // Escreve a string diretamente no arquivo
     perror("Erro ao escrever no arquivo");
@@ -305,7 +306,7 @@ char *createFormattedString(const char *format, ...) {
 }
 
 void new_index(int new_index) {
-  job_index_g = new_index;
+  index = new_index;
 }
 
 void process_job(int fd) {
@@ -449,7 +450,6 @@ void* thread_function(void* arg) {
         // Se havia uma tarefa, processa-a
         if (has_task) {
             process_job(fd);
-            
             // Incrementa o contador de tarefas concluídas
             pthread_mutex_lock(&job_mutex);
             jobs_completed_g++;
