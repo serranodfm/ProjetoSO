@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <pthread.h>
+#include <sys/wait.h>
 
 #include "kvs.h"
 #include "constants.h"
@@ -19,12 +20,23 @@ int fd_out;
 static char *filenms[MAX_FILES]; 
 int index = 0;
 
+Task task_queue[MAX_TASKS]; // -> fds
+int task_count_g = 0;  // Número de tarefas na fila -> count
+int task_index_g = 0;  // Índice da próxima tarefa a ser retirada -> index
+int tasks_completed_g = 0; // Número de tarefas concluídas -> ???
+
+// Variável de controle para encerrar as threads
+int finished_g = 0; // -> ???
+
+// Mutex para sincronizar o acesso à fila de tarefas
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 extern pthread_mutex_t job_mutex;
 extern pthread_mutex_t backup_mutex;
 extern size_t MAX_CHILDREN;
 extern size_t MAX_THREADS;
-extern int child_count;
-extern char *dirpath;
+extern int child_count_g;
+extern char *dirpath_g;
 
 
 /// Calculates a timespec from a delay in milliseconds.
@@ -356,22 +368,22 @@ void *process_job(int fd) {
 
       case CMD_BACKUP:
           while (1) {
-            if (child_count < (int)MAX_CHILDREN) {
+            if (child_count_g < (int)MAX_CHILDREN) {
               pid_t pid = fork();
               if (pid == 0) {
-                if (kvs_backup(dirpath, bck_count)) {
+                if (kvs_backup(dirpath_g, bck_count)) {
                   fprintf(stderr, "Failed to perform backup.\n");
                 }
                 _exit(0);
               } else {
                 bck_count++;
-                child_count++;
+                child_count_g++;
                 break;
               }
             } 
             else {
               wait(NULL);
-              child_count--;
+              child_count_g--;
             }
           }
           break;
@@ -405,6 +417,7 @@ void *process_job(int fd) {
 
 //
 void* thread_function(void* arg) {
+    (void)arg;
     while (1) {
         Task task;
         int has_task = 0;
@@ -413,13 +426,13 @@ void* thread_function(void* arg) {
         pthread_mutex_lock(&job_mutex);
 
         // Verifica se há tarefas disponíveis
-        if (task_index < task_count) {
-            task = task_queue[task_index];
-            task_index++;
+        if (task_index_g < task_count_g) {
+            task = task_queue[task_index_g];
+            task_index_g++;
             has_task = 1; // Marca que uma tarefa foi retirada
-        } else if (tasks_completed >= task_count) {
+        } else if (tasks_completed_g >= task_count_g) {
             // Se todas as tarefas foram concluídas, sinaliza para sair
-            finished = 1;
+            finished_g = 1;
         }
 
         // Desbloqueia o acesso à fila de tarefas
@@ -431,12 +444,12 @@ void* thread_function(void* arg) {
 
             // Incrementa o contador de tarefas concluídas
             pthread_mutex_lock(&mutex);
-            tasks_completed++;
+            tasks_completed_g++;
             pthread_mutex_unlock(&mutex);
         }
 
         // Sai do loop se todas as tarefas foram concluídas
-        if (finished) {
+        if (finished_g) {
             break;
         }
     }
@@ -457,4 +470,9 @@ int compareKeyValuePairs(const void *a, const void *b) {
 
 void backup_mutex_init() {
   pthread_mutex_init(&backup_mutex, NULL);
+}
+
+void process_task(Task* task) {
+  printf("Thread %lu processando tarefa com input %d\n", pthread_self(), task->input);
+  sleep(1); // Simula uma tarefa demorada
 }
