@@ -112,7 +112,7 @@ int delete_pair(HashTable *ht, const char *key) {
             free(keyNode); // Free the key node itself
             return 0; // Exit the function
         }
-        pthread_rwlock_unlock(&prevNode->lock);
+        if (prevNode != NULL) pthread_rwlock_unlock(&prevNode->lock);
         prevNode = keyNode;
         if (keyNode->next != NULL) pthread_rwlock_wrlock(&keyNode->next->lock);
         keyNode = keyNode->next; // Move to the next node

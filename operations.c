@@ -154,9 +154,15 @@ int kvs_delete(size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
 void kvs_show() {
   for (int i = 0; i < TABLE_SIZE; i++) {
     KeyNode *keyNode = kvs_table->table[i];
+    KeyNode *prevNode = NULL;
+    if (keyNode != NULL) pthread_rwlock_rdlock(&keyNode->lock);
     while (keyNode != NULL) {
       kvs_out(createFormattedString("(%s, %s)\n", keyNode->key, keyNode->value));
+
+      if (keyNode->next != NULL) pthread_rwlock_rdlock(&keyNode->next->lock);
+      prevNode = keyNode;
       keyNode = keyNode->next; // Move to the next node
+      pthread_rwlock_unlock(&prevNode->lock);
     }
   }
 }
