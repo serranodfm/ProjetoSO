@@ -362,7 +362,7 @@ void *process_job(int fd) {
                 if (kvs_backup(dirpath, bck_count)) {
                   fprintf(stderr, "Failed to perform backup.\n");
                 }
-                exit(0);
+                _exit(0);
               } else {
                 bck_count++;
                 child_count++;
