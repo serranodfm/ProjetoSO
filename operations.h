@@ -74,5 +74,6 @@ int compareStrings(const void *a, const void *b);
 int compareKeyValuePairs(const void *a, const void *b);
 void backup_mutex_init();
 void* thread_function(void* arg);
+void process_task(Task* task);
 
 #endif  // KVS_OPERATIONS_H

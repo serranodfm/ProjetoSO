@@ -14,10 +14,10 @@
 
 size_t MAX_CHILDREN;
 size_t MAX_THREADS;
-int child_count = 0;
+int child_count_g = 0;
 pthread_mutex_t job_mutex;
 pthread_mutex_t backup_mutex;
-char *dirpath = NULL;
+char *dirpath_g = NULL;
 int *fds = NULL;
 
 int main(int argc, char* argv[]) {
@@ -28,10 +28,10 @@ int main(int argc, char* argv[]) {
   pthread_mutex_init(&backup_mutex, NULL);
 
   size_t strl = strlen(argv[1]) + 2;
-  dirpath = malloc(strl);
-  snprintf(dirpath, strl, "%s/", argv[1]);
-  dirp = open_dir(dirpath);
-  fds = read_files_in_directory(dirp, dirpath, &count); 
+  dirpath_g = malloc(strl);
+  snprintf(dirpath_g, strl, "%s/", argv[1]);
+  dirp = open_dir(dirpath_g);
+  fds = read_files_in_directory(dirp, dirpath_g, &count); 
 
   sscanf(argv[2], "%ld", &MAX_CHILDREN);
   sscanf(argv[3], "%ld", &MAX_THREADS);
@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
     pthread_join(threads[i], NULL);
   }
 
-  free(dirpath);
+  free(dirpath_g);
   close_files(dirp, fds, count);
   kvs_terminate();
   return 0;
