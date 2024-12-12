@@ -50,7 +50,7 @@ int write_pair(HashTable *ht, const char *key, const char *value) {
     }
 
     // Key not found, create a new key node
-    pthread_rwlock_wrlock(&ht->table[index]->lock);
+    if (ht->table[index] != NULL) pthread_rwlock_wrlock(&ht->table[index]->lock);
     keyNode = malloc(sizeof(KeyNode));
     keyNode->key = strdup(key); // Allocate memory for the key
     keyNode->value = strdup(value); // Allocate memory for the value
@@ -58,7 +58,7 @@ int write_pair(HashTable *ht, const char *key, const char *value) {
     pthread_rwlock_wrlock(&keyNode->lock);
     keyNode->next = ht->table[index]; // Link to existing nodes
     ht->table[index] = keyNode; // Place new key node at the start of the list
-    pthread_rwlock_unlock(&keyNode->next->lock);
+    if (keyNode->next != NULL) pthread_rwlock_unlock(&keyNode->next->lock);
     pthread_rwlock_unlock(&keyNode->lock);
     return 0;
 }
