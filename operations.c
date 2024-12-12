@@ -19,6 +19,7 @@ char *directorypath = NULL;
 static char *filenms[MAX_FILES]; 
 
 extern int job_count_g;  // Número de tarefas na fila -> count
+int job_index_g = 0;
 int jobs_completed_g = 0; // Número de tarefas concluídas -> ???
 
 // Variável de controle para encerrar as threads
@@ -407,7 +408,6 @@ void process_job(int fd, int index) {
 //
 void* thread_function(void* arg) {
     (void) arg;
-    int job_index_g = 0;
     printf("quantidade de jobs: %d\n", job_count_g);
     while (1) {
         int fd;
