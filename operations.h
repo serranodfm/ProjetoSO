@@ -13,6 +13,7 @@
 #include <stdarg.h>
 #include <pthread.h>
 #include <sys/wait.h>
+#include <semaphore.h>
 
 #include "kvs.h"
 #include "constants.h"

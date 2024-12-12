@@ -4,7 +4,7 @@ CC = gcc
 CFLAGS = -g -std=c17 -D_POSIX_C_SOURCE=200809L \
 		 -Wall -Werror -Wextra \
 		 -Wcast-align -Wconversion -Wfloat-equal -Wformat=2 -Wnull-dereference -Wshadow -Wsign-conversion -Wswitch-enum -Wundef -Wunreachable-code -Wunused \
-		 -fsanitize=address -fsanitize=undefined
+		 #-fsanitize=address -fsanitize=undefined
 
 ifneq ($(shell uname -s),Darwin) # if not MacOS
 	CFLAGS += -fmax-errors=5
@@ -20,6 +20,9 @@ kvs: main.c constants.h operations.o parser.o kvs.o
 
 run: kvs
 	@./kvs
+
+debug: kvs
+	@gdb --args ./kvs /home/martim/Documents/SO2425/ProjetoSO/myTest/ 2 2
 
 clean:
 	rm -f *.o kvs

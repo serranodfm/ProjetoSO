@@ -14,6 +14,8 @@ int finished_g = 0; // -> ???
 // Mutex para sincronizar o acesso à fila de tarefas
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+sem_t child_semaphore;
+
 extern pthread_mutex_t job_mutex;
 extern pthread_mutex_t backup_mutex;
 extern size_t MAX_CHILDREN;
@@ -31,6 +33,10 @@ static struct timespec delay_to_timespec(unsigned int delay_ms) {
 }
 
 int kvs_init() {
+  if (sem_init(&child_semaphore, 0, (unsigned int)MAX_CHILDREN) != 0) {
+    perror("Erro ao inicializar o semáforo");
+    return EXIT_FAILURE;
+  }
   if (kvs_table != NULL) {
     fprintf(stderr, "KVS state has already been initialized\n");
     return 1;
@@ -46,6 +52,7 @@ int kvs_terminate() {
   }
 
   free_table(kvs_table);
+  sem_destroy(&child_semaphore);
   return 0;
 }
 
@@ -344,25 +351,28 @@ void process_job(int fd, int index) {
           }
           break;
 
-      case CMD_BACKUP: // colocar um semaforo, eu acho, com child_count_g
+      case CMD_BACKUP: 
           while (1) {
-            if (child_count_g < (int)MAX_CHILDREN) {
-              pid_t pid = fork();
-              if (pid == 0) {
-                if (kvs_backup(dirpath_g, bck_count, index)) {
+            sem_wait(&child_semaphore);
+
+            pid_t pid = fork();
+            if (pid == 0) {
+              if (kvs_backup(dirpath_g, bck_count, index)) {
                   fprintf(stderr, "Failed to perform backup.\n");
-                }
-                _exit(0);
-              } else {
-                bck_count++;
-                child_count_g++;
-                break;
               }
-            } 
-            else {
-              wait(NULL);
-              child_count_g--;
+              _exit(0); 
+            } else if (pid > 0) {
+              bck_count++;
+              break; 
+            } else {
+              perror("Erro ao criar processo com fork");
+              sem_post(&child_semaphore); 
+              break;
             }
+          }
+
+          while (waitpid(-1, NULL, WNOHANG) > 0) {
+            sem_post(&child_semaphore); 
           }
           break;
 
