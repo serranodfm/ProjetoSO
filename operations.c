@@ -252,14 +252,14 @@ int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
 
 void init_out() {
   printf("index: %d\n", index);
+  //o erro esta aqui, acedemos a memoria erradamente
   filenms[index][strlen(filenms[index]) - 4] = '\0';
-
   size_t out_filename_len = strlen(directorypath) + strlen(filenms[index]) + 6 /*4(.out) + 1("/0")*/;
   char *out_filename = malloc(out_filename_len);
 
   sprintf(out_filename, "%s/%s.out", directorypath, filenms[index]);
+  printf("ficheiro atual: %s\n",out_filename);
   fd_out = open(out_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-  printf("criou: %s\n",out_filename);
   if (fd_out == -1) {
     perror("Erro ao abrir arquivo");
   }
@@ -267,7 +267,6 @@ void init_out() {
 }
 
 void kvs_out(char *string) {
-  printf("esta no ficheiro: %s\n", filenms[index]);
   size_t string_len = strlen(string); // Calcula o tamanho da string
   if (write(fd_out, string, string_len) == -1) { // Escreve a string diretamente no arquivo
     perror("Erro ao escrever no arquivo");
@@ -416,7 +415,7 @@ void process_job(int fd) {
         break;
 
       case EOC:
-        kvs_next();
+        if (index < job_count_g) {kvs_next();}
         return;
     }
   }
@@ -426,6 +425,7 @@ void process_job(int fd) {
 void* thread_function(void* arg) {
     (void) arg;
     int job_index_g = 0;
+    printf("quantidade de jobs: %d\n", job_count_g);
     while (1) {
         int fd;
         int has_task = 0;
