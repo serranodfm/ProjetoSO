@@ -16,9 +16,7 @@
 
 static struct HashTable* kvs_table = NULL;
 char *directorypath = NULL;
-int fd_out;
 static char *filenms[MAX_FILES]; 
-int index = 0;
 
 extern int job_count_g;  // Número de tarefas na fila -> count
 int jobs_completed_g = 0; // Número de tarefas concluídas -> ???
@@ -50,7 +48,6 @@ int kvs_init() {
     fprintf(stderr, "KVS state has already been initialized\n");
     return 1;
   }
-  init_out();
   kvs_table = create_hash_table();
   return kvs_table == NULL;
 }
@@ -62,19 +59,7 @@ int kvs_terminate() {
   }
 
   free_table(kvs_table);
-  close(fd_out);
   return 0;
-}
-
-void kvs_clean() {
-  kvs_terminate();
-  kvs_table = NULL;
-  kvs_init();
-}
-
-void kvs_next() {
-  close(fd_out);
-  init_out();
 }
 
 int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_STRING_SIZE]) {
@@ -105,28 +90,28 @@ int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_
   return 0;
 }
 
-int kvs_read(size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
+int kvs_read(size_t num_pairs, char keys[][MAX_STRING_SIZE], int fd_out) {
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
     return 1;
   }
   qsort(keys, num_pairs, MAX_STRING_SIZE, compareStrings);
 
-  kvs_out(createFormattedString("["));
+  kvs_out(createFormattedString("["), fd_out);
   for (size_t i = 0; i < num_pairs; i++) {
     char* result = read_pair(kvs_table, keys[i]);
     if (result == NULL) {
-      kvs_out(createFormattedString("(%s,KVSERROR)", keys[i]));
+      kvs_out(createFormattedString("(%s,KVSERROR)", keys[i]), fd_out);
     } else {
-      kvs_out(createFormattedString("(%s,%s)", keys[i], result));
+      kvs_out(createFormattedString("(%s,%s)", keys[i], result), fd_out);
     }
     free(result);
   }
-  kvs_out(createFormattedString("]\n"));
+  kvs_out(createFormattedString("]\n"), fd_out);
   return 0;
 }
 
-int kvs_delete(size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
+int kvs_delete(size_t num_pairs, char keys[][MAX_STRING_SIZE], int fd_out) {
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
     return 1;
@@ -137,26 +122,26 @@ int kvs_delete(size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
   for (size_t i = 0; i < num_pairs; i++) {
     if (delete_pair(kvs_table, keys[i]) != 0) {
       if (!aux) {
-        kvs_out(createFormattedString("["));
+        kvs_out(createFormattedString("["), fd_out);
         aux = 1;
       }
-      kvs_out(createFormattedString("(%s,KVSMISSING)", keys[i]));
+      kvs_out(createFormattedString("(%s,KVSMISSING)", keys[i]), fd_out);
     }
   }
   if (aux) {
-    kvs_out(createFormattedString("]\n"));
+    kvs_out(createFormattedString("]\n"), fd_out);
   }
 
   return 0;
 }
 
-void kvs_show() {
+void kvs_show(int fd_out) {
   for (int i = 0; i < TABLE_SIZE; i++) {
     KeyNode *keyNode = kvs_table->table[i];
     KeyNode *prevNode = NULL;
     if (keyNode != NULL) pthread_rwlock_rdlock(&keyNode->lock);
     while (keyNode != NULL) {
-      kvs_out(createFormattedString("(%s, %s)\n", keyNode->key, keyNode->value));
+      kvs_out(createFormattedString("(%s, %s)\n", keyNode->key, keyNode->value), fd_out);
 
       if (keyNode->next != NULL) pthread_rwlock_rdlock(&keyNode->next->lock);
       prevNode = keyNode;
@@ -166,7 +151,7 @@ void kvs_show() {
   }
 }
 
-int kvs_backup(char *dirpath, int bck_count) {
+int kvs_backup(char *dirpath, int bck_count, int index) {
   int fd;
   char count_str[20];
 
@@ -250,7 +235,7 @@ int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
   return fds;
 }
 
-void init_out() {
+int init_out(int index) {
   printf("index: %d\n", index);
   //o erro esta aqui, a mesma thread corre isto duas vezes
   filenms[index][strlen(filenms[index]) - 4] = '\0';
@@ -259,14 +244,15 @@ void init_out() {
 
   sprintf(out_filename, "%s/%s.out", directorypath, filenms[index]);
   printf("ficheiro atual: %s\n",out_filename);
-  fd_out = open(out_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  int fd_out = open(out_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (fd_out == -1) {
     perror("Erro ao abrir arquivo");
   }
   free(out_filename);
+  return fd_out;
 }
 
-void kvs_out(char *string) {
+void kvs_out(char *string, int fd_out) {
   size_t string_len = strlen(string); // Calcula o tamanho da string
   if (write(fd_out, string, string_len) == -1) { // Escreve a string diretamente no arquivo
     perror("Erro ao escrever no arquivo");
@@ -303,11 +289,8 @@ char *createFormattedString(const char *format, ...) {
   return formattedString; 
 }
 
-void new_index(int new_index) {
-  index = new_index;
-}
-
-void process_job(int fd) {
+void process_job(int fd, int index) {
+  int fd_out = init_out(index);
   while (1) {
     int bck_count = 1;
     char keys[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
@@ -337,7 +320,7 @@ void process_job(int fd) {
           continue;
         }
 
-        if (kvs_read(num_pairs, keys)) {
+        if (kvs_read(num_pairs, keys, fd_out)) {
           fprintf(stderr, "Failed to read pair\n");
         }
         break;
@@ -350,13 +333,13 @@ void process_job(int fd) {
           continue;
         }
 
-        if (kvs_delete(num_pairs, keys)) {
+        if (kvs_delete(num_pairs, keys, fd_out)) {
           fprintf(stderr, "Failed to delete pair\n");
         }
         break;
 
       case CMD_SHOW:
-          kvs_show();
+          kvs_show(fd_out);
           break;
 
       case CMD_WAIT:
@@ -376,7 +359,7 @@ void process_job(int fd) {
             if (child_count_g < (int)MAX_CHILDREN) {
               pid_t pid = fork();
               if (pid == 0) {
-                if (kvs_backup(dirpath_g, bck_count)) {
+                if (kvs_backup(dirpath_g, bck_count, index)) {
                   fprintf(stderr, "Failed to perform backup.\n");
                 }
                 _exit(0);
@@ -415,7 +398,7 @@ void process_job(int fd) {
         break;
 
       case EOC:
-        if (index < job_count_g) {kvs_next();}
+        close(fd_out);
         return;
     }
   }
@@ -449,7 +432,7 @@ void* thread_function(void* arg) {
 
         // Se havia uma tarefa, processa-a
         if (has_task) {
-            process_job(fd);
+            process_job(fd, index);
             // Incrementa o contador de tarefas concluídas
             pthread_mutex_lock(&job_mutex);
             jobs_completed_g++;
