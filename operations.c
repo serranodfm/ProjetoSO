@@ -288,8 +288,8 @@ char *createFormattedString(const char *format, ...) {
 
 void process_job(int fd, int index) {
   int fd_out = init_out(index);
+  int bck_count = 1;
   while (1) {
-    int bck_count = 1;
     char keys[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
     char values[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
     unsigned int delay;
@@ -358,7 +358,7 @@ void process_job(int fd, int index) {
             pid_t pid = fork();
             if (pid == 0) {
               if (kvs_backup(dirpath_g, bck_count, index)) {
-                  fprintf(stderr, "Failed to perform backup.\n");
+                fprintf(stderr, "Failed to perform backup.\n");
               }
               _exit(0); 
             } else if (pid > 0) {
