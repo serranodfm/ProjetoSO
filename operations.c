@@ -252,7 +252,7 @@ int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
 
 void init_out() {
   printf("index: %d\n", index);
-  //o erro esta aqui, acedemos a memoria erradamente
+  //o erro esta aqui, a mesma thread corre isto duas vezes
   filenms[index][strlen(filenms[index]) - 4] = '\0';
   size_t out_filename_len = strlen(directorypath) + strlen(filenms[index]) + 6 /*4(.out) + 1("/0")*/;
   char *out_filename = malloc(out_filename_len);
