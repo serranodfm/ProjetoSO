@@ -54,20 +54,17 @@ int write_pair(HashTable *ht, const char *key, const char *value) {
 char* read_pair(HashTable *ht, const char *key) {
     int index = hash(key);
     KeyNode *keyNode = ht->table[index];
-    KeyNode *prevNode = NULL;
     char* value;
 
-    if (keyNode != NULL) pthread_rwlock_rdlock(&keyNode->lock);
     while (keyNode != NULL) {
+        pthread_rwlock_wrlock(&keyNode->lock);
         if (strcmp(keyNode->key, key) == 0) {
             value = strdup(keyNode->value);
             pthread_rwlock_unlock(&keyNode->lock);
             return value; // Return copy of the value if found
         }
-        prevNode = keyNode;
-        if (keyNode->next != NULL) pthread_rwlock_rdlock(&keyNode->next->lock);
-        keyNode = keyNode->next; // Move to the next node
-        pthread_rwlock_unlock(&prevNode->lock);
+        pthread_rwlock_unlock(&keyNode->lock);
+        keyNode = keyNode->next;
     }
     return NULL; // Key not found
 }
@@ -77,37 +74,30 @@ int delete_pair(HashTable *ht, const char *key) {
     KeyNode *keyNode = ht->table[index];
     KeyNode *prevNode = NULL;
 
-    // Search for the key node
-    if (keyNode != NULL) pthread_rwlock_wrlock(&keyNode->lock);
     while (keyNode != NULL) {
+        pthread_rwlock_wrlock(&keyNode->lock); 
         if (strcmp(keyNode->key, key) == 0) {
-            pthread_rwlock_wrlock(&keyNode->lock);
-            // Key found; delete this node
             if (prevNode == NULL) {
-                // Node to delete is the first node in the list
-                ht->table[index] = keyNode->next; // Update the table to point to the next node
+                ht->table[index] = keyNode->next;
             } else {
-                // Node to delete is not the first; bypass it
-                prevNode->next = keyNode->next; // Link the previous node to the next node
-                pthread_rwlock_unlock(&prevNode->lock);
+                pthread_rwlock_wrlock(&prevNode->lock); 
+                prevNode->next = keyNode->next;
+                pthread_rwlock_unlock(&prevNode->lock); 
             }
-            pthread_rwlock_unlock(&keyNode->lock);
-            // Free the memory allocated for the key and value
+            pthread_rwlock_unlock(&keyNode->lock); 
+            pthread_rwlock_destroy(&keyNode->lock);
             free(keyNode->key);
             free(keyNode->value);
-            pthread_rwlock_unlock(&keyNode->lock);
-            pthread_rwlock_destroy(&keyNode->lock);
-            free(keyNode); // Free the key node itself
-            return 0; // Exit the function
+            free(keyNode);
+            return 0;
         }
-        if (prevNode != NULL) pthread_rwlock_unlock(&prevNode->lock);
+        pthread_rwlock_unlock(&keyNode->lock); 
         prevNode = keyNode;
-        if (keyNode->next != NULL) pthread_rwlock_wrlock(&keyNode->next->lock);
-        keyNode = keyNode->next; // Move to the next node
+        keyNode = keyNode->next;
     }
-    
     return 1;
 }
+
 
 void free_table(HashTable *ht) {
     for (int i = 0; i < TABLE_SIZE; i++) {
