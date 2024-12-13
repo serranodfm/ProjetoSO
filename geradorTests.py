@@ -16,15 +16,15 @@ def string_aleatoria(max_length):
     #return letra_aleatoria()
 
 def main():
-    for _ in range(100000):
-        #if random.randint(0, 10000) == 1234: print("BACKUP")
-        #if random.randint(0, 10) == 2: print(f"WRITE [({string_aleatoria(MAX_STRING_LENGTH)},{string_aleatoria(MAX_STRING_LENGTH)})]")
-        #if random.randint(0, 10) == 3: print(f"READ [{string_aleatoria(MAX_STRING_LENGTH)},{string_aleatoria(MAX_STRING_LENGTH)},{string_aleatoria(MAX_STRING_LENGTH)}]")
-        #if random.randint(0, 10) == 4: print(f"DELETE [{string_aleatoria(MAX_STRING_LENGTH)},{string_aleatoria(MAX_STRING_LENGTH)}]")
-        print(f"WRITE [({string_aleatoria(MAX_STRING_LENGTH)},{string_aleatoria(MAX_STRING_LENGTH)})]")
+    for _ in range(50000):
+        if random.randint(-1000, 1000) == 123: print("BACKUP")
+        if random.randint(0, 0) == 0: print(f"WRITE [({string_aleatoria(MAX_STRING_LENGTH)},{string_aleatoria(MAX_STRING_LENGTH)})]")
+        #if random.randint(0, 0) == 0: print(f"READ [{string_aleatoria(MAX_STRING_LENGTH)},{string_aleatoria(MAX_STRING_LENGTH)},{string_aleatoria(MAX_STRING_LENGTH)}]")
+        if random.randint(0, 0) == 0: print(f"DELETE [{string_aleatoria(MAX_STRING_LENGTH)},{string_aleatoria(MAX_STRING_LENGTH)}]")
+        #print(f"WRITE [({string_aleatoria(MAX_STRING_LENGTH)},{string_aleatoria(MAX_STRING_LENGTH)})]")
         
-    for _ in range(10):
-        print("BACKUP")
+    #for _ in range(10):
+        #print("BACKUP")
     #print("BACKUP")
 
 main()
