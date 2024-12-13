@@ -146,7 +146,6 @@ void kvs_show(int fd_out) {
 }
 
 int kvs_backup(char *dirpath, int bck_count, int index) {
-  printf("comecou backup %d\n", bck_count);
   int fd;
   char count_str[20];
 
@@ -190,8 +189,6 @@ int kvs_backup(char *dirpath, int bck_count, int index) {
 
   free(bck_filename);
   close(fd);
-  sleep(5);
-  printf("acabou backup %d\n", bck_count);
   return 0;
 }
 
