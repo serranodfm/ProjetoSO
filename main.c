@@ -23,9 +23,10 @@ int *fd_s = NULL;
 int main(int argc, char* argv[]) {
   if (argc != 4) return 1;
   DIR *dirp = NULL;
-  // Iniciar mutex
+  // Iniciar mutexs e rwlocks
   pthread_mutex_init(&job_mutex, NULL);
   pthread_mutex_init(&backup_mutex, NULL);
+  bucket_rwlocks_init();
   // Obter ficheiros (fd_s)
   size_t strl = strlen(argv[1]) + 2;
   dirpath_g = malloc(strl);
@@ -56,6 +57,7 @@ int main(int argc, char* argv[]) {
   }
 
   free(dirpath_g);
+  bucket_rwlocks_destroy();
   close_files(dirp, fd_s, job_count_g);
   kvs_terminate();
   return 0;

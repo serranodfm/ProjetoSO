@@ -81,7 +81,14 @@ char *createFormattedString(const char *format, ...);
 void process_job(int fd, int index);
 int compareStrings(const void *a, const void *b);
 int compareKeyValuePairs(const void *a, const void *b);
-void backup_mutex_init();
 void* thread_function(void* arg);
+void bucket_rwlocks_init();
+void bucket_rwlocks_destroy();
+void bucket_rdlock_all();
+void bucket_unlock_all();
+void bucket_wrlock_indexes(size_t indexes[]);
+void bucket_rdlock_indexes(size_t indexes[]);
+void bucket_unlock_indexes(size_t indexes[]);
+void get_hash_indexes(size_t num_pairs, char keys[][MAX_STRING_SIZE], size_t (*indexes)[TABLE_SIZE]);
 
 #endif  // KVS_OPERATIONS_H

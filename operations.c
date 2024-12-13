@@ -3,10 +3,11 @@
 static struct HashTable* kvs_table = NULL;
 char *directorypath = NULL;
 static char *filenms[MAX_FILES]; 
+pthread_rwlock_t bucket_rwlocks[TABLE_SIZE];
 
-extern int job_count_g;  // Número de tarefas na fila -> count
+extern int job_count_g;
 int job_index_g = 0;
-int jobs_completed_g = 0; // Número de tarefas concluídas -> ???
+int jobs_completed_g = 0;
 // Variável de controle para encerrar as threads
 int finished_g = 0; // -> ???
 // Mutex para sincronizar o acesso à fila de tarefas
@@ -70,11 +71,17 @@ int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_
   }
   free(pairs);
 
+  size_t indexes[TABLE_SIZE] = {0};
+  get_hash_indexes(num_pairs, keys, &indexes);
+  bucket_wrlock_indexes(indexes);
+
   for (size_t i = 0; i < num_pairs; i++) {
     if (write_pair(kvs_table, keys[i], values[i]) != 0) {
       fprintf(stderr, "Failed to write keypair (%s,%s)\n", keys[i], values[i]);
     }
   }
+
+  bucket_unlock_indexes(indexes);
   return 0;
 }
 
@@ -86,6 +93,11 @@ int kvs_read(size_t num_pairs, char keys[][MAX_STRING_SIZE], int fd_out) {
   }
 
   qsort(keys, num_pairs, MAX_STRING_SIZE, compareStrings);
+
+  size_t indexes[TABLE_SIZE] = {0};
+  get_hash_indexes(num_pairs, keys, &indexes);
+  bucket_rdlock_indexes(indexes);
+
   // kvs_out -> Escreve no out uma string ("[")
   kvs_out(createFormattedString("["), fd_out);
   for (size_t i = 0; i < num_pairs; i++) {
@@ -98,6 +110,7 @@ int kvs_read(size_t num_pairs, char keys[][MAX_STRING_SIZE], int fd_out) {
     free(result);
   }
   kvs_out(createFormattedString("]\n"), fd_out);
+  bucket_unlock_indexes(indexes);
   return 0;
 }
 
@@ -109,6 +122,10 @@ int kvs_delete(size_t num_pairs, char keys[][MAX_STRING_SIZE], int fd_out) {
   }
   int aux = 0;
   qsort(keys, num_pairs, MAX_STRING_SIZE, compareStrings);
+
+  size_t indexes[TABLE_SIZE] = {0};
+  get_hash_indexes(num_pairs, keys, &indexes);
+  bucket_wrlock_indexes(indexes);
 
   for (size_t i = 0; i < num_pairs; i++) {
     if (delete_pair(kvs_table, keys[i]) != 0) {
@@ -123,21 +140,22 @@ int kvs_delete(size_t num_pairs, char keys[][MAX_STRING_SIZE], int fd_out) {
     kvs_out(createFormattedString("]\n"), fd_out);
   }
 
+  bucket_unlock_indexes(indexes);
+
   return 0;
 }
 
 
 void kvs_show(int fd_out) {
+  bucket_rdlock_all();
   for (int i = 0; i < TABLE_SIZE; i++) {
     KeyNode *keyNode = kvs_table->table[i];
     while (keyNode != NULL) {
-      pthread_rwlock_wrlock(&keyNode->lock);
       kvs_out(createFormattedString("(%s, %s)\n", keyNode->key, keyNode->value), fd_out);
-
-      pthread_rwlock_unlock(&keyNode->lock);
       keyNode = keyNode->next;
     }
   }
+  bucket_unlock_all();
 }
 
 
@@ -162,7 +180,6 @@ int kvs_backup(char *dirpath, int bck_count, int index) {
     KeyNode *keyNode = kvs_table->table[i];
     // Iterar pela HashTable
     while (keyNode != NULL) {
-      pthread_rwlock_wrlock(&keyNode->lock);
       // Construir linha
       char *value = keyNode->value;
       char *key = keyNode->key;
@@ -177,7 +194,6 @@ int kvs_backup(char *dirpath, int bck_count, int index) {
       }
 
       free(bck);
-      pthread_rwlock_unlock(&keyNode->lock);
       keyNode = keyNode->next;
     }
   }
@@ -456,10 +472,44 @@ int compareKeyValuePairs(const void *a, const void *b) {
   return strcmp(pair1->key, pair2->key);
 }
 
-void backup_mutex_init() {
-  pthread_mutex_init(&backup_mutex, NULL);
+void bucket_rwlocks_init() {
+  for (int i = 0; i < TABLE_SIZE; i++) pthread_rwlock_init(&bucket_rwlocks[i], NULL);
 }
 
-void job_mutex_init() {
-  pthread_mutex_init(&job_mutex, NULL);
+void bucket_rwlocks_destroy() {
+  for (int i = 0; i < TABLE_SIZE; i++) pthread_rwlock_destroy(&bucket_rwlocks[i]);
+}
+
+void bucket_rdlock_all() {
+  for (int i = 0; i < TABLE_SIZE; i++) pthread_rwlock_rdlock(&bucket_rwlocks[i]);
+}
+
+void bucket_unlock_all() {
+  for (size_t i = 0; i < TABLE_SIZE; i++) pthread_rwlock_unlock(&bucket_rwlocks[i]);
+}
+
+void bucket_wrlock_indexes(size_t indexes[]) {
+  for (size_t i = 0; i < TABLE_SIZE; i++) {
+    if (indexes[i]) pthread_rwlock_wrlock(&bucket_rwlocks[i]);
+  }
+}
+
+void bucket_rdlock_indexes(size_t indexes[]) {
+  for (size_t i = 0; i < TABLE_SIZE; i++) {
+    if (indexes[i]) pthread_rwlock_rdlock(&bucket_rwlocks[i]);
+  }
+}
+
+void bucket_unlock_indexes(size_t indexes[]) {
+  for (int i = 0; i < TABLE_SIZE; i++) {
+    if (indexes[i]) pthread_rwlock_unlock(&bucket_rwlocks[i]);
+  }
+}
+
+void get_hash_indexes(size_t num_pairs, char keys[][MAX_STRING_SIZE], size_t (*indexes)[TABLE_SIZE]) {
+  int bucket;
+  for (size_t i = 0; i < num_pairs; i++) {
+    bucket = hash(keys[i]);
+    (*indexes)[bucket] = 1;
+  }
 }
