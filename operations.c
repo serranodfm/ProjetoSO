@@ -14,7 +14,7 @@ int finished_g = 0; // -> ???
 // Mutex para sincronizar o acesso à fila de tarefas
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-sem_t child_semaphore;
+//sem_t child_semaphore;
 
 extern pthread_mutex_t job_mutex;
 extern pthread_mutex_t backup_mutex;
@@ -33,10 +33,10 @@ static struct timespec delay_to_timespec(unsigned int delay_ms) {
 }
 
 int kvs_init() {
-  if (sem_init(&child_semaphore, 0, (unsigned int)MAX_CHILDREN) != 0) {
-    perror("Erro ao inicializar o semáforo");
-    return EXIT_FAILURE;
-  }
+  //if (sem_init(&child_semaphore, 0, (unsigned int)MAX_CHILDREN) != 0) {
+    //perror("Erro ao inicializar o semáforo");
+    //return EXIT_FAILURE;
+  //}
   if (kvs_table != NULL) {
     fprintf(stderr, "KVS state has already been initialized\n");
     return 1;
@@ -52,7 +52,7 @@ int kvs_terminate() {
   }
 
   free_table(kvs_table);
-  sem_destroy(&child_semaphore);
+  //sem_destroy(&child_semaphore);
   return 0;
 }
 
@@ -146,6 +146,7 @@ void kvs_show(int fd_out) {
 }
 
 int kvs_backup(char *dirpath, int bck_count, int index) {
+  printf("comecou backup %d\n", bck_count);
   int fd;
   char count_str[20];
 
@@ -189,6 +190,8 @@ int kvs_backup(char *dirpath, int bck_count, int index) {
 
   free(bck_filename);
   close(fd);
+  sleep(5);
+  printf("acabou backup %d\n", bck_count);
   return 0;
 }
 
@@ -353,6 +356,27 @@ void process_job(int fd, int index) {
 
       case CMD_BACKUP: 
           while (1) {
+            if (child_count_g < (int)MAX_CHILDREN) {
+              pid_t pid = fork();
+              if (pid == 0) {
+                if (kvs_backup(dirpath_g, bck_count, index)) {
+                  fprintf(stderr, "Failed to perform backup.\n");
+                }
+                _exit(0);
+              } else {
+                bck_count++;
+                child_count_g++;
+                break;
+              }
+            } 
+            else {
+              wait(NULL);
+              child_count_g--;
+            }
+          }
+          break;
+          /*
+          while (1) {
             sem_wait(&child_semaphore);
 
             pid_t pid = fork();
@@ -374,7 +398,7 @@ void process_job(int fd, int index) {
           while (waitpid(-1, NULL, WNOHANG) > 0) {
             sem_post(&child_semaphore); 
           }
-          break;
+          break;*/
 
       case CMD_INVALID:
         fprintf(stderr, "Invalid command. See HELP for usage\n");

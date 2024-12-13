@@ -27,21 +27,23 @@ struct HashTable* create_hash_table() {
 int write_pair(HashTable *ht, const char *key, const char *value) {
     int index = hash(key);
     KeyNode *keyNode = ht->table[index];
-    KeyNode *prevNode = NULL;
+    //KeyNode *prevNode = NULL;
 
     // Search for the key node
-    if (keyNode != NULL) pthread_rwlock_wrlock(&keyNode->lock);
+    //if (keyNode != NULL) pthread_rwlock_wrlock(&keyNode->lock);
     while (keyNode != NULL) {
+        pthread_rwlock_wrlock(&keyNode->lock);
         if (strcmp(keyNode->key, key) == 0) {
             free(keyNode->value);
             keyNode->value = strdup(value);
             pthread_rwlock_unlock(&keyNode->lock);
             return 0;
         }
-        prevNode = keyNode;
-        if (keyNode->next != NULL) pthread_rwlock_wrlock(&keyNode->next->lock);
+        //prevNode = keyNode;
+        pthread_rwlock_unlock(&keyNode->lock);
+        //if (keyNode->next != NULL) pthread_rwlock_wrlock(&keyNode->next->lock);
         keyNode = keyNode->next; // Move to the next node
-        pthread_rwlock_unlock(&prevNode->lock);
+        //pthread_rwlock_unlock(&prevNode->lock);
     }
 
     // Key not found, create a new key node
