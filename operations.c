@@ -377,21 +377,31 @@ void process_job(int fd, int index) {
             // Se o numero de filhos estiver no limite
             if (child_count_g < (int)MAX_CHILDREN) {
               pid_t pid = fork();
-              if (pid == 0) {
+              if (pid < 0) {
+                // Erro ao criar o processo filho
+                perror("fork failed");
+                break;
+              } else if (pid == 0) {
+                // Processo filho
                 if (kvs_backup(dirpath_g, bck_count, index)) {
                   fprintf(stderr, "Failed to perform backup.\n");
                 }
-                _exit(0);
+                _exit(0); // Processo filho termina
               } else {
+                // Processo pai
                 bck_count++;
                 child_count_g++;
                 break;
               }
-            } 
-            else {
-              // Esperamos que algum termine
-              wait(NULL);
-              child_count_g--;
+            } else {
+              // Se atingimos o limite de filhos, aguardamos que um termine
+              pid_t terminated_pid = wait(NULL);
+              if (terminated_pid > 0) {
+                child_count_g--;
+              } else {
+                perror("wait failed");
+                break;
+              }
             }
           }
           break;
