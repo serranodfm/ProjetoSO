@@ -7,15 +7,11 @@ static char *filenms[MAX_FILES];
 extern int job_count_g;  // Número de tarefas na fila -> count
 int job_index_g = 0;
 int jobs_completed_g = 0; // Número de tarefas concluídas -> ???
-
 // Variável de controle para encerrar as threads
 int finished_g = 0; // -> ???
-
 // Mutex para sincronizar o acesso à fila de tarefas
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-
-//sem_t child_semaphore;
-
+// Variaveis extern
 extern pthread_mutex_t job_mutex;
 extern pthread_mutex_t backup_mutex;
 extern size_t MAX_CHILDREN;
@@ -32,11 +28,8 @@ static struct timespec delay_to_timespec(unsigned int delay_ms) {
   return (struct timespec){delay_ms / 1000, (delay_ms % 1000) * 1000000};
 }
 
+
 int kvs_init() {
-  //if (sem_init(&child_semaphore, 0, (unsigned int)MAX_CHILDREN) != 0) {
-    //perror("Erro ao inicializar o semáforo");
-    //return EXIT_FAILURE;
-  //}
   if (kvs_table != NULL) {
     fprintf(stderr, "KVS state has already been initialized\n");
     return 1;
@@ -45,6 +38,7 @@ int kvs_init() {
   return kvs_table == NULL;
 }
 
+
 int kvs_terminate() {
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
@@ -52,16 +46,16 @@ int kvs_terminate() {
   }
 
   free_table(kvs_table);
-  //sem_destroy(&child_semaphore);
   return 0;
 }
+
 
 int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_STRING_SIZE]) {
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
     return 1;
   }
-
+  // Organizar chaves
   KeyValuePair *pairs = malloc(num_pairs * sizeof(KeyValuePair));
   for (size_t i = 0; i < num_pairs; i++) {
     strncpy(pairs[i].key, keys[i], MAX_STRING_SIZE);
@@ -69,7 +63,7 @@ int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_
   }
 
   qsort(pairs, num_pairs, sizeof(KeyValuePair), compareKeyValuePairs);
-
+  // Associar valor a cada chave depois de organizada
   for (size_t i = 0; i < num_pairs; i++) {
     strncpy(keys[i], pairs[i].key, MAX_STRING_SIZE);
     strncpy(values[i], pairs[i].value, MAX_STRING_SIZE);
@@ -84,13 +78,15 @@ int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_
   return 0;
 }
 
+
 int kvs_read(size_t num_pairs, char keys[][MAX_STRING_SIZE], int fd_out) {
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
     return 1;
   }
-  qsort(keys, num_pairs, MAX_STRING_SIZE, compareStrings);
 
+  qsort(keys, num_pairs, MAX_STRING_SIZE, compareStrings);
+  // kvs_out -> Escreve no out uma string ("[")
   kvs_out(createFormattedString("["), fd_out);
   for (size_t i = 0; i < num_pairs; i++) {
     char* result = read_pair(kvs_table, keys[i]);
@@ -104,6 +100,7 @@ int kvs_read(size_t num_pairs, char keys[][MAX_STRING_SIZE], int fd_out) {
   kvs_out(createFormattedString("]\n"), fd_out);
   return 0;
 }
+
 
 int kvs_delete(size_t num_pairs, char keys[][MAX_STRING_SIZE], int fd_out) {
   if (kvs_table == NULL) {
@@ -129,33 +126,32 @@ int kvs_delete(size_t num_pairs, char keys[][MAX_STRING_SIZE], int fd_out) {
   return 0;
 }
 
+
 void kvs_show(int fd_out) {
   for (int i = 0; i < TABLE_SIZE; i++) {
     KeyNode *keyNode = kvs_table->table[i];
-    KeyNode *prevNode = NULL;
-    if (keyNode != NULL) pthread_rwlock_rdlock(&keyNode->lock);
     while (keyNode != NULL) {
+      pthread_rwlock_wrlock(&keyNode->lock);
       kvs_out(createFormattedString("(%s, %s)\n", keyNode->key, keyNode->value), fd_out);
 
-      if (keyNode->next != NULL) pthread_rwlock_rdlock(&keyNode->next->lock);
-      prevNode = keyNode;
-      keyNode = keyNode->next; // Move to the next node
-      pthread_rwlock_unlock(&prevNode->lock);
+      pthread_rwlock_unlock(&keyNode->lock);
+      keyNode = keyNode->next;
     }
   }
 }
 
+
 int kvs_backup(char *dirpath, int bck_count, int index) {
   int fd;
   char count_str[20];
-
+  // Construir nome do ficheiro
   snprintf(count_str, sizeof(count_str), "%d", bck_count);
 
   size_t bck_filename_len = strlen(dirpath) + strlen(filenms[index]) + strlen("-") + strlen(count_str) + 6 /*4(.bck) + 1("/0")*/;
   char *bck_filename = malloc(bck_filename_len);
 
   sprintf(bck_filename, "%s/%s-%s.bck", dirpath, filenms[index], count_str);
-
+  // Criar ficheiro
   fd = open(bck_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (fd == -1) {
     perror("Erro ao abrir arquivo");
@@ -164,9 +160,10 @@ int kvs_backup(char *dirpath, int bck_count, int index) {
 
   for (int i = 0; i < TABLE_SIZE; i++) {
     KeyNode *keyNode = kvs_table->table[i];
-    KeyNode *prevNode = NULL;
-    if (keyNode != NULL) pthread_rwlock_rdlock(&keyNode->lock);
+    // Iterar pela HashTable
     while (keyNode != NULL) {
+      pthread_rwlock_wrlock(&keyNode->lock);
+      // Construir linha
       char *value = keyNode->value;
       char *key = keyNode->key;
       size_t bck_len = strlen(value) + strlen(key) + 6;
@@ -180,10 +177,8 @@ int kvs_backup(char *dirpath, int bck_count, int index) {
       }
 
       free(bck);
-      if (keyNode->next != NULL) pthread_rwlock_rdlock(&keyNode->next->lock);
-      prevNode = keyNode;
-      keyNode = keyNode->next; // Move to the next node
-      pthread_rwlock_unlock(&prevNode->lock);
+      pthread_rwlock_unlock(&keyNode->lock);
+      keyNode = keyNode->next;
     }
   }
 
@@ -191,6 +186,7 @@ int kvs_backup(char *dirpath, int bck_count, int index) {
   close(fd);
   return 0;
 }
+
 
 void kvs_wait(unsigned int delay_ms) {
   struct timespec delay = delay_to_timespec(delay_ms);
@@ -202,6 +198,7 @@ DIR *open_dir(const char *dirpath) {
   return opendir(dirpath);
 }
 
+
 int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
   struct dirent *dp;
   static int fds[MAX_FILES]; 
@@ -211,15 +208,16 @@ int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
     dp = readdir(dirp);
     if (dp == NULL)
       break;
-
+    // Se nao for um ficheiro .job passamos a frente
     if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0 || strcmp(dp->d_name + strlen(dp->d_name) - 4, ".job") != 0)
       continue;
-
+    // Construir nome do ficheiro
     char filepath[1024];
     snprintf(filepath, sizeof(filepath), "%s/%s", dirpath, dp->d_name);
     free(directorypath); 
     directorypath = malloc(strlen(dirpath) + 1);
     strcpy(directorypath, dirpath); //guardar o dir
+
     int fd = open(filepath, O_RDONLY);
     if (fd == -1) {
       perror("Erro ao abrir arquivo");
@@ -234,10 +232,11 @@ int *read_files_in_directory(DIR *dirp, const char *dirpath, int *count) {
   return fds;
 }
 
+
 int init_out(int index) {
-  //o erro esta aqui, a mesma thread corre isto duas vezes
+  // Funcao que cria o ficheiro [Index] out
   filenms[index][strlen(filenms[index]) - 4] = '\0';
-  size_t out_filename_len = strlen(directorypath) + strlen(filenms[index]) + 6 /*4(.out) + 1("/0")*/;
+  size_t out_filename_len = strlen(directorypath) + strlen(filenms[index]) + 6; //4(.out) +1("/") + 1("/0")
   char *out_filename = malloc(out_filename_len);
 
   sprintf(out_filename, "%s/%s.out", directorypath, filenms[index]);
@@ -249,13 +248,16 @@ int init_out(int index) {
   return fd_out;
 }
 
+
 void kvs_out(char *string, int fd_out) {
+  // Escreve no ficheiro out
   size_t string_len = strlen(string); // Calcula o tamanho da string
   if (write(fd_out, string, string_len) == -1) { // Escreve a string diretamente no arquivo
     perror("Erro ao escrever no arquivo");
   }
   free(string);
 }
+
 
 void close_files(DIR *dirp, int* fds, int count) {
   for (int i = 0; i < count; i++) {
@@ -266,7 +268,9 @@ void close_files(DIR *dirp, int* fds, int count) {
   free(directorypath);
 }
 
+
 char *createFormattedString(const char *format, ...) {
+  // Cria strings com o formato pedido
   va_list args;
   va_start(args, format);
 
@@ -285,6 +289,7 @@ char *createFormattedString(const char *format, ...) {
 
   return formattedString; 
 }
+
 
 void process_job(int fd, int index) {
   int fd_out = init_out(index);
@@ -353,6 +358,7 @@ void process_job(int fd, int index) {
 
       case CMD_BACKUP: 
           while (1) {
+            // Se o numero de filhos estiver no limite
             if (child_count_g < (int)MAX_CHILDREN) {
               pid_t pid = fork();
               if (pid == 0) {
@@ -367,35 +373,12 @@ void process_job(int fd, int index) {
               }
             } 
             else {
+              // Esperamos que algum termine
               wait(NULL);
               child_count_g--;
             }
           }
           break;
-          /*
-          while (1) {
-            sem_wait(&child_semaphore);
-
-            pid_t pid = fork();
-            if (pid == 0) {
-              if (kvs_backup(dirpath_g, bck_count, index)) {
-                fprintf(stderr, "Failed to perform backup.\n");
-              }
-              _exit(0); 
-            } else if (pid > 0) {
-              bck_count++;
-              break; 
-            } else {
-              perror("Erro ao criar processo com fork");
-              sem_post(&child_semaphore); 
-              break;
-            }
-          }
-
-          while (waitpid(-1, NULL, WNOHANG) > 0) {
-            sem_post(&child_semaphore); 
-          }
-          break;*/
 
       case CMD_INVALID:
         fprintf(stderr, "Invalid command. See HELP for usage\n");
@@ -425,7 +408,7 @@ void process_job(int fd, int index) {
   }
 }
 
-//
+
 void* thread_function(void* arg) {
   (void) arg;
   while (1) {
@@ -436,6 +419,7 @@ void* thread_function(void* arg) {
     pthread_mutex_lock(&job_mutex);
 
     if (job_index_g < job_count_g) {
+      // Obter fd atual
       fd = fd_s[job_index_g];
       job_index_g++;
       has_task = 1; 
@@ -446,6 +430,7 @@ void* thread_function(void* arg) {
     pthread_mutex_unlock(&job_mutex);
 
     if (has_task) {
+      // Processar fd
       process_job(fd, index);
       pthread_mutex_lock(&job_mutex);
       jobs_completed_g++;

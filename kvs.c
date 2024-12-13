@@ -16,12 +16,12 @@ int hash(const char *key) {
 
 
 struct HashTable* create_hash_table() {
-  HashTable *ht = malloc(sizeof(HashTable));
-  if (!ht) return NULL;
-  for (int i = 0; i < TABLE_SIZE; i++) {
-      ht->table[i] = NULL;
-  }
-  return ht;
+    HashTable *ht = malloc(sizeof(HashTable));
+    if (!ht) return NULL;
+    for (int i = 0; i < TABLE_SIZE; i++) {
+        ht->table[i] = NULL;
+    }
+    return ht;
 }
 
 int write_pair(HashTable *ht, const char *key, const char *value) {
